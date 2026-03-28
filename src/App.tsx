@@ -108,7 +108,11 @@ function MainApp() {
       <Header onScanClick={() => { setScanResult(null); setShowScanner(true); }} />
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <ImpactDashboard />
+        <ImpactDashboard
+          items={items}
+          onAddItem={() => { setActiveTab('club-inventory'); setEditingItem(null); setShowAddItem(true); }}
+          onGoToMarketplace={() => setActiveTab('marketplace')}
+        />
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Tab bar */}
