@@ -10,6 +10,7 @@ export const inventoryItems: InventoryItem[] = [
     location: 'Carney Hall, Suite 147',
     quantity: 6,
     lastUsed: 'Student Involvement Fair',
+    shared: true,
   },
   {
     id: 2,
@@ -20,6 +21,7 @@ export const inventoryItems: InventoryItem[] = [
     location: 'Carney Storage',
     quantity: 1,
     lastUsed: 'Mudstock',
+    shared: false,
   },
   {
     id: 3,
@@ -30,6 +32,7 @@ export const inventoryItems: InventoryItem[] = [
     location: 'Carney Hall, Suite 147',
     quantity: 4,
     lastUsed: 'Homecoming',
+    shared: true,
   },
   {
     id: 4,
@@ -40,6 +43,7 @@ export const inventoryItems: InventoryItem[] = [
     location: 'Mod Lot Storage',
     quantity: 3,
     lastUsed: 'ALC Showdown',
+    shared: true,
   },
   {
     id: 5,
@@ -50,6 +54,7 @@ export const inventoryItems: InventoryItem[] = [
     location: 'Carney Storage',
     quantity: 2,
     lastUsed: 'Stokes Set',
+    shared: false,
   },
   {
     id: 6,
@@ -60,6 +65,7 @@ export const inventoryItems: InventoryItem[] = [
     location: 'Carney Hall, Suite 147',
     quantity: 5,
     lastUsed: 'Student Involvement Fair',
+    shared: true,
   },
   {
     id: 7,
@@ -70,6 +76,7 @@ export const inventoryItems: InventoryItem[] = [
     location: 'Mod Lot Storage',
     quantity: 8,
     lastUsed: 'Mudstock',
+    shared: true,
   },
 ];
 
