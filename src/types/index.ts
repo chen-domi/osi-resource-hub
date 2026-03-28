@@ -7,6 +7,23 @@ export interface InventoryItem {
   location: string;
   quantity: number;
   lastUsed: string;
+  checkedOutTo?: {
+    name: string;
+    email: string;
+    date: string;
+    expectedReturn: string;
+  };
+}
+
+export interface AuthUser {
+  name: string;
+  email: string;
+  organizations: Array<{
+    org: string;
+    role: 'member' | 'eboard';
+  }>;
+  currentOrg: string;
+  isOSIAdmin: boolean;
 }
 
 export interface ScanResult {
