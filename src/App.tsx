@@ -1,18 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe } from 'lucide-react';
+import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { supabase } from './lib/supabase';
 import Header from './components/Header';
 import ImpactDashboard from './components/ImpactDashboard';
 import QRScannerModal from './components/QRScannerModal';
 import InventoryTable from './components/InventoryTable';
 import SharingMarketplace from './components/SharingMarketplace';
+import RequestsBoard from './components/RequestsBoard';
+import Combobox from './components/Combobox';
 import LoginPage from './components/LoginPage';
 import AddItemModal from './components/AddItemModal';
-import { inventoryItems } from './data/inventory';
 import { InventoryItem, ScanResult } from './types';
 
-type Tab = 'club-inventory' | 'global-inventory' | 'marketplace';
+function rowToItem(row: any): InventoryItem {
+  return {
+    id:       row.id,
+    qrCode:   row.qr_code,
+    name:     row.name,
+    category: row.category,
+    org:      row.org,
+    location: row.location,
+    quantity: row.quantity,
+    lastUsed: row.last_used,
+    shared:   row.shared,
+  };
+}
+
+type Tab = 'club-inventory' | 'global-inventory' | 'marketplace' | 'wanted';
 
 export default function App() {
   return (
@@ -35,7 +51,8 @@ function AppInner() {
 
 function MainApp() {
   const { user } = useAuth();
-  const [items, setItems] = useState<InventoryItem[]>(inventoryItems);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('club-inventory');
   const [searchTerm, setSearchTerm] = useState('');
   const [showScanner, setShowScanner] = useState(false);
@@ -43,6 +60,8 @@ function MainApp() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [showAddItem, setShowAddItem] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterOrg, setFilterOrg] = useState('');
 
   const isAdmin = !!user?.isOSIAdmin;
   const userRole = user?.organizations[0]?.role ?? 'member';
@@ -55,23 +74,60 @@ function MainApp() {
     return () => clearTimeout(t);
   }, [scanResult]);
 
-  // Reset search on tab change
-  useEffect(() => { setSearchTerm(''); }, [activeTab]);
+  // Reset search and filters on tab change
+  useEffect(() => { setSearchTerm(''); setFilterCategory(''); setFilterOrg(''); }, [activeTab]);
 
-  const handleSaveItem = (saved: InventoryItem) => {
-    setItems((prev) =>
-      prev.some((i) => i.id === saved.id)
-        ? prev.map((i) => (i.id === saved.id ? saved : i))
-        : [...prev, saved]
-    );
+  // Load inventory from Supabase
+  useEffect(() => {
+    supabase.from('inventory').select('*').order('id').then(({ data }) => {
+      if (data) setItems(data.map(rowToItem));
+      setLoadingItems(false);
+    });
+  }, []);
+
+  const handleSaveItem = async (saved: InventoryItem) => {
+    const isNew = !items.some((i) => i.id === saved.id);
+    const row = {
+      qr_code:  saved.qrCode,
+      name:     saved.name,
+      category: saved.category,
+      org:      saved.org,
+      location: saved.location,
+      quantity: saved.quantity,
+      last_used: saved.lastUsed,
+      shared:   saved.shared,
+    };
+    if (isNew) {
+      const { data, error } = await supabase
+        .from('inventory')
+        .insert({ ...row, created_by: user?.id ?? null })
+        .select()
+        .single();
+      if (data) {
+        setItems((prev) => [...prev, rowToItem(data)]);
+      } else {
+        // No real Supabase session (e.g. dev login) — fall back to local state
+        if (error) console.error('Inventory insert failed:', error.message);
+        setItems((prev) => [...prev, saved]);
+      }
+    } else {
+      const { error } = await supabase.from('inventory').update(row).eq('id', saved.id);
+      if (error) console.error('Inventory update failed:', error.message);
+      setItems((prev) => prev.map((i) => (i.id === saved.id ? saved : i)));
+    }
     setShowAddItem(false);
     setEditingItem(null);
   };
 
-  const handleDeleteItem = (id: number) => setItems((prev) => prev.filter((i) => i.id !== id));
+  const handleDeleteItem = async (id: number) => {
+    await supabase.from('inventory').delete().eq('id', id);
+    setItems((prev) => prev.filter((i) => i.id !== id));
+  };
 
-  const handleToggleShare = (id: number, shared: boolean) =>
+  const handleToggleShare = async (id: number, shared: boolean) => {
+    await supabase.from('inventory').update({ shared }).eq('id', id);
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, shared } : i)));
+  };
 
   const handleScan = (qrCode: string) => {
     const item = items.find((i) => i.qrCode === qrCode);
@@ -89,12 +145,17 @@ function MainApp() {
 
   const applySearch = (list: InventoryItem[]) => {
     const q = searchTerm.toLowerCase();
-    if (!q) return list;
-    return list.filter(({ name, org, category, qrCode }) =>
-      name.toLowerCase().includes(q) || org.toLowerCase().includes(q) ||
-      category.toLowerCase().includes(q) || qrCode.toLowerCase().includes(q)
-    );
+    return list.filter(({ name, org, category, qrCode }) => {
+      if (filterCategory && category !== filterCategory) return false;
+      if (filterOrg && org !== filterOrg) return false;
+      if (!q) return true;
+      return name.toLowerCase().includes(q) || org.toLowerCase().includes(q) ||
+        category.toLowerCase().includes(q) || qrCode.toLowerCase().includes(q);
+    });
   };
+
+  const allCategories = Array.from(new Set(items.map((i) => i.category))).sort();
+  const allOrgs = Array.from(new Set(items.map((i) => i.org))).sort();
 
   // Club inventory = own org (or all for admin)
   const clubItems = isAdmin ? items : items.filter((i) => i.org === user?.currentOrg);
@@ -104,19 +165,19 @@ function MainApp() {
     { key: 'club-inventory',   label: 'Club Inventory',   icon: <Package size={15} />,       count: clubItems.length },
     { key: 'global-inventory', label: 'Global Inventory', icon: <Globe size={15} />,          count: globalItems.length },
     { key: 'marketplace',      label: 'Marketplace',      icon: <ArrowLeftRight size={15} />, count: items.filter((i) => i.shared).length },
+    { key: 'wanted',           label: 'Wanted',           icon: <Inbox size={15} /> },
   ];
-
-  const showToolbar = activeTab !== 'marketplace';
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#f8f4ee' }}>
-      <Header onScanClick={() => { setScanResult(null); setShowScanner(true); }} />
+      <Header />
 
       <main className="max-w-6xl mx-auto px-4 py-8">
         <ImpactDashboard
           items={items}
           onAddItem={() => { setActiveTab('club-inventory'); setEditingItem(null); setShowAddItem(true); }}
           onGoToMarketplace={() => setActiveTab('marketplace')}
+          onScanClick={() => { setScanResult(null); setShowScanner(true); }}
         />
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -143,52 +204,91 @@ function MainApp() {
           </div>
 
           {/* Toolbar */}
-          {showToolbar && (
-            <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-3">
-              <div className="relative max-w-sm flex-1">
+          {activeTab !== 'wanted' && (
+          <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50 flex flex-wrap items-center gap-3">
+            {activeTab !== 'marketplace' && (
+              <div className="relative max-w-sm flex-1 min-w-[160px]">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input type="text" placeholder="Search items, orgs, categories…"
                   value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:border-transparent bg-white"
                   style={{ '--tw-ring-color': '#CFB87C' } as React.CSSProperties} />
               </div>
-              {canAdd && activeTab === 'club-inventory' && (
-                <button onClick={() => { setEditingItem(null); setShowAddItem(true); }}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 flex-shrink-0"
-                  style={{ backgroundColor: '#8B0000' }}>
-                  <Plus size={15} />
-                  Add Item
-                </button>
-              )}
-            </div>
+            )}
+
+            {/* Category + Org filters — global inventory and marketplace */}
+            {activeTab !== 'club-inventory' && (
+              <>
+                <Combobox
+                  options={allCategories}
+                  value={filterCategory}
+                  onChange={setFilterCategory}
+                  placeholder="All Categories"
+                  allOptionLabel="All Categories"
+                  className="min-w-[150px]"
+                  style={{ '--tw-ring-color': '#CFB87C' } as React.CSSProperties}
+                />
+                <Combobox
+                  options={allOrgs}
+                  value={filterOrg}
+                  onChange={setFilterOrg}
+                  placeholder="All Organizations"
+                  allOptionLabel="All Organizations"
+                  className="min-w-[180px]"
+                  style={{ '--tw-ring-color': '#CFB87C' } as React.CSSProperties}
+                />
+              </>
+            )}
+
+            {canAdd && activeTab === 'club-inventory' && (
+              <button onClick={() => { setEditingItem(null); setShowAddItem(true); }}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 flex-shrink-0"
+                style={{ backgroundColor: '#8B0000' }}>
+                <Plus size={15} />
+                Add Item
+              </button>
+            )}
+          </div>
           )}
 
           {/* Content */}
           <div className="p-5">
-            {activeTab === 'club-inventory' && (
-              <InventoryTable
-                items={applySearch(clubItems)}
-                checkedOutItems={checkedOutItems}
-                viewMode="club"
-                onScanClick={handleTableQRClick}
-                onEdit={(item) => { setEditingItem(item); setShowAddItem(true); }}
-                onDelete={handleDeleteItem}
-                onToggleShare={handleToggleShare}
-              />
-            )}
-            {activeTab === 'global-inventory' && (
-              <InventoryTable
-                items={applySearch(globalItems)}
-                checkedOutItems={checkedOutItems}
-                viewMode="global"
-                onScanClick={handleTableQRClick}
-                onEdit={(item) => { setEditingItem(item); setShowAddItem(true); }}
-                onDelete={handleDeleteItem}
-                onToggleShare={handleToggleShare}
-              />
-            )}
-            {activeTab === 'marketplace' && (
-              <SharingMarketplace items={items} checkedOutItems={checkedOutItems} />
+            {loadingItems ? (
+              <div className="text-center py-16 text-gray-400">
+                <div className="w-8 h-8 rounded-full border-4 border-gray-200 border-t-gray-400 animate-spin mx-auto mb-3" />
+                <p className="text-sm">Loading inventory…</p>
+              </div>
+            ) : (
+              <>
+                {activeTab === 'club-inventory' && (
+                  <InventoryTable
+                    items={applySearch(clubItems)}
+                    checkedOutItems={checkedOutItems}
+                    viewMode="club"
+                    onScanClick={handleTableQRClick}
+                    onEdit={(item) => { setEditingItem(item); setShowAddItem(true); }}
+                    onDelete={handleDeleteItem}
+                    onToggleShare={handleToggleShare}
+                  />
+                )}
+                {activeTab === 'global-inventory' && (
+                  <InventoryTable
+                    items={applySearch(globalItems)}
+                    checkedOutItems={checkedOutItems}
+                    viewMode="global"
+                    onScanClick={handleTableQRClick}
+                    onEdit={(item) => { setEditingItem(item); setShowAddItem(true); }}
+                    onDelete={handleDeleteItem}
+                    onToggleShare={handleToggleShare}
+                  />
+                )}
+                {activeTab === 'marketplace' && (
+                  <SharingMarketplace items={items} checkedOutItems={checkedOutItems} filterCategory={filterCategory} filterOrg={filterOrg} />
+                )}
+                {activeTab === 'wanted' && (
+                  <RequestsBoard onGoToInventory={() => setActiveTab('club-inventory')} />
+                )}
+              </>
             )}
           </div>
         </div>

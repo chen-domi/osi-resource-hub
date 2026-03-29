@@ -1,5 +1,6 @@
-import React from 'react';
-import { Package, QrCode, MapPin, Pencil, Trash2, Lock } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { Package, QrCode, MapPin, Pencil, Trash2, Lock, Eye, Printer } from 'lucide-react';
 import { InventoryItem } from '../types';
 import { categoryColors } from '../data/inventory';
 import { useAuth } from '../context/AuthContext';
@@ -84,16 +85,69 @@ interface RowProps {
   onToggleShare: (id: number, shared: boolean) => void;
 }
 
+function QRPopover({ qrCode }: { qrCode: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function handlePrint() {
+    const win = window.open('', '_blank', 'width=300,height=350');
+    if (!win) return;
+    win.document.write(`
+      <html><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:monospace;gap:12px">
+        <div id="qr"></div>
+        <p style="font-size:12px;color:#555">${qrCode}</p>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+        <script>new QRCode(document.getElementById('qr'),{text:'${qrCode}',width:180,height:180});<\/script>
+      </body></html>
+    `);
+    win.document.close();
+    setTimeout(() => win.print(), 800);
+  }
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <div className="flex items-center gap-1">
+        <button onClick={() => { }} title="Scan item"
+          className="flex items-center gap-1.5 font-mono text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-all hover:shadow-sm active:scale-95"
+          style={{ borderColor: '#CFB87C', color: '#8B0000', backgroundColor: '#fffbeb' }}>
+          <QrCode size={12} />{qrCode}
+        </button>
+        <button onClick={() => setOpen((o) => !o)} title="View QR code"
+          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          <Eye size={13} />
+        </button>
+      </div>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-2xl shadow-xl p-4 flex flex-col items-center gap-2"
+          style={{ minWidth: 180 }}>
+          <QRCodeSVG value={qrCode} size={140} bgColor="#ffffff" fgColor="#6B0000" />
+          <p className="text-xs font-mono text-gray-500 text-center">{qrCode}</p>
+          <button onClick={handlePrint}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors hover:opacity-90 text-white w-full justify-center"
+            style={{ backgroundColor: '#8B0000' }}>
+            <Printer size={12} /> Print
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InventoryRow({ item, isCheckedOut, viewMode, canEdit, canToggle, onScanClick, onEdit, onDelete, onToggleShare }: RowProps) {
   return (
     <tr className="bg-white hover:bg-amber-50 transition-colors">
       {/* QR Code */}
       <td className="px-4 py-3">
-        <button onClick={() => onScanClick(item.qrCode)} title="Click to simulate scan"
-          className="flex items-center gap-1.5 font-mono text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-all hover:shadow-sm active:scale-95"
-          style={{ borderColor: '#CFB87C', color: '#8B0000', backgroundColor: '#fffbeb' }}>
-          <QrCode size={12} />{item.qrCode}
-        </button>
+        <QRPopover qrCode={item.qrCode} />
       </td>
 
       {/* Name + category */}

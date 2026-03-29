@@ -29,6 +29,7 @@ async function fetchProfile(su: SupabaseUser): Promise<AuthUser | null> {
     .single();
   if (error || !data) return null;
   return {
+    id: su.id,
     name: data.name,
     email: data.email,
     organizations: data.organizations,
@@ -114,10 +115,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const devLogin = useCallback(() => {
     setUser({
+      id: 'dev-user',
       name: 'Test User',
       email: 'testuser@bc.edu',
-      organizations: [{ org: 'BC Debate Society', role: 'eboard' }],
-      currentOrg: 'BC Debate Society',
+      organizations: [
+        { org: 'UGBC', role: 'eboard' },
+        { org: 'BC Debate Society', role: 'eboard' },
+        { org: 'BC Surf Club', role: 'eboard' },
+        { org: 'Finance Club', role: 'eboard' },
+      ],
+      currentOrg: 'UGBC',
       isOSIAdmin: false,
     });
     setNeedsProfileSetup(false);

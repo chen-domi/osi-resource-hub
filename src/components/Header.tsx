@@ -1,12 +1,8 @@
 import React from 'react';
-import { Package, QrCode, MapPin, LogOut, ChevronDown } from 'lucide-react';
+import { Package, MapPin, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-interface HeaderProps {
-  onScanClick: () => void;
-}
-
-export default function Header({ onScanClick }: HeaderProps) {
+export default function Header() {
   const { user, logout, switchOrg } = useAuth();
 
   const isAdmin = !!user?.isOSIAdmin;
@@ -75,15 +71,6 @@ export default function Header({ onScanClick }: HeaderProps) {
                 )}
               </div>
             )}
-
-            <button
-              onClick={onScanClick}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm shadow-md hover:shadow-xl transition-all hover:scale-105 active:scale-95"
-              style={{ backgroundColor: 'white', color: '#8B0000' }}
-            >
-              <QrCode size={17} />
-              Scan QR
-            </button>
 
             {user && (
               <button

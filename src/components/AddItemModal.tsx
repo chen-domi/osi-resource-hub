@@ -3,11 +3,23 @@ import { X, Wand2 } from 'lucide-react';
 import { InventoryItem } from '../types';
 import { categoryColors } from '../data/inventory';
 import { useAuth } from '../context/AuthContext';
+import Combobox from './Combobox';
 
 const CATEGORIES = Object.keys(categoryColors);
 
+const PRESET_LOCATIONS = [
+  'Carney Hall, Suite 147',
+  'Carney Storage',
+  'Mod Lot Storage',
+  'McElroy Commons',
+  'Stokes Hall',
+  'Gasson Hall',
+  'Higgins Hall',
+  'Fulton Hall',
+];
+
 interface AddItemModalProps {
-  item?: InventoryItem;       // provided when editing
+  item?: InventoryItem;
   nextId: number;
   onSave: (item: InventoryItem) => void;
   onClose: () => void;
@@ -27,15 +39,14 @@ export default function AddItemModal({ item, nextId, onSave, onClose }: AddItemM
   const [category, setCategory] = useState(item?.category ?? CATEGORIES[0]);
   const [location, setLocation] = useState(item?.location ?? '');
   const [quantity, setQuantity] = useState(String(item?.quantity ?? 1));
-  const [lastUsed, setLastUsed] = useState(item?.lastUsed ?? '');
+  const [lastUsed, setLastUsed] = useState(item?.lastUsed === '—' ? '' : (item?.lastUsed ?? ''));
   const [shared, setShared] = useState(item?.shared ?? false);
   const [qrCode, setQrCode] = useState(item?.qrCode ?? '');
   const [qrTouched, setQrTouched] = useState(editing);
 
   const org = user?.currentOrg ?? '';
 
-  const inputClass =
-    'w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:border-transparent bg-white';
+  const inputClass = 'w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:border-transparent bg-white';
   const ring = { '--tw-ring-color': '#8B0000' } as React.CSSProperties;
 
   function handleAutoQR() {
@@ -88,9 +99,13 @@ export default function AddItemModal({ item, nextId, onSave, onClose }: AddItemM
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Category *</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass} style={ring}>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <Combobox
+                options={CATEGORIES}
+                value={category}
+                onChange={setCategory}
+                placeholder="Type or select…"
+                style={ring}
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Quantity *</label>
@@ -102,13 +117,19 @@ export default function AddItemModal({ item, nextId, onSave, onClose }: AddItemM
           {/* Location */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Storage Location *</label>
-            <input type="text" value={location} onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Carney Hall, Suite 147" required className={inputClass} style={ring} />
+            <Combobox
+              options={PRESET_LOCATIONS}
+              value={location}
+              onChange={setLocation}
+              placeholder="Type or select a location…"
+              required
+              style={ring}
+            />
           </div>
 
           {/* Last Used */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Last Used At (event name)</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Last Used At <span className="font-normal text-gray-400">(event name)</span></label>
             <input type="text" value={lastUsed} onChange={(e) => setLastUsed(e.target.value)}
               placeholder="e.g. Student Involvement Fair" className={inputClass} style={ring} />
           </div>

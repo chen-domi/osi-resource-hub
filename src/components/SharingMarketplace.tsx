@@ -8,14 +8,21 @@ import BorrowRequestModal from './BorrowRequestModal';
 interface SharingMarketplaceProps {
   items: InventoryItem[];
   checkedOutItems: string[];
+  filterCategory: string;
+  filterOrg: string;
 }
 
-export default function SharingMarketplace({ items, checkedOutItems }: SharingMarketplaceProps) {
+export default function SharingMarketplace({ items, checkedOutItems, filterCategory, filterOrg }: SharingMarketplaceProps) {
   const { user } = useAuth();
   const [requestItem, setRequestItem] = useState<InventoryItem | null>(null);
 
-  // Only show items opted into sharing and not checked out
-  const available = items.filter((i) => i.shared && !checkedOutItems.includes(i.qrCode));
+  // Only show items opted into sharing, not checked out, matching active filters
+  const available = items.filter((i) =>
+    i.shared &&
+    !checkedOutItems.includes(i.qrCode) &&
+    (!filterCategory || i.category === filterCategory) &&
+    (!filterOrg || i.org === filterOrg)
+  );
 
   return (
     <div>

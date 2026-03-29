@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, Bell, Zap, Lightbulb, Plus, ArrowLeftRight, CheckCircle2, Clock } from 'lucide-react';
+import { Package, Bell, Zap, Lightbulb, Plus, ArrowLeftRight, CheckCircle2, Clock, QrCode } from 'lucide-react';
 import { InventoryItem } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -7,9 +7,10 @@ interface ImpactDashboardProps {
   items: InventoryItem[];
   onAddItem: () => void;
   onGoToMarketplace: () => void;
+  onScanClick: () => void;
 }
 
-export default function ImpactDashboard({ items, onAddItem, onGoToMarketplace }: ImpactDashboardProps) {
+export default function ImpactDashboard({ items, onAddItem, onGoToMarketplace, onScanClick }: ImpactDashboardProps) {
   const { user } = useAuth();
   const isAdmin = !!user?.isOSIAdmin;
   const canAdd = isAdmin || user?.organizations[0]?.role === 'eboard';
@@ -96,6 +97,10 @@ export default function ImpactDashboard({ items, onAddItem, onGoToMarketplace }:
               className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors">
               <ArrowLeftRight size={14} /> View requests
             </button>
+            <button onClick={onScanClick}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors">
+              <QrCode size={14} /> Scan QR
+            </button>
           </div>
         </div>
       </div>
@@ -106,8 +111,8 @@ export default function ImpactDashboard({ items, onAddItem, onGoToMarketplace }:
           style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a' }}>
           <Lightbulb size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
           <span className="text-sm text-amber-800 flex-1 min-w-0">
-            <span className="font-semibold">Tip:</span> Your org has items not used in 6+ months.
-            Consider sharing on marketplace:{' '}
+            <span className="font-semibold">Tip:</span> You have unshared items that other orgs could borrow.
+            Consider listing on the marketplace:{' '}
             <span className="font-semibold">{tipItem.name}</span>
           </span>
           <button onClick={onGoToMarketplace}

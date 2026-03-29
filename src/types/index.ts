@@ -17,6 +17,7 @@ export interface InventoryItem {
 }
 
 export interface AuthUser {
+  id?: string;
   name: string;
   email: string;
   organizations: Array<{
