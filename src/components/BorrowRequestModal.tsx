@@ -34,7 +34,7 @@ export default function BorrowRequestModal({ item, onClose }: BorrowRequestModal
     ].filter((l) => l !== undefined).join('\n');
 
     const ownerEmail = `eboard@bc.edu`; // placeholder — real app would look up contact
-    const subject = encodeURIComponent(`[OSI Resource Hub] Borrow Request: ${item.name}`);
+    const subject = encodeURIComponent(`[The Commons] Borrow Request: ${item.name}`);
     const bodyEncoded = encodeURIComponent(body);
 
     window.open(`mailto:${ownerEmail}?subject=${subject}&body=${bodyEncoded}`);

@@ -5,6 +5,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   login: (user: AuthUser) => void;
   logout: () => void;
+  switchOrg: (org: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -43,8 +44,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const switchOrg = useCallback((org: string) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, currentOrg: org };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, switchOrg }}>
       {children}
     </AuthContext.Provider>
   );

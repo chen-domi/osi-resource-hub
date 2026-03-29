@@ -1,24 +1,16 @@
 import React from 'react';
-import { Package, QrCode, MapPin, LogOut } from 'lucide-react';
+import { Package, QrCode, MapPin, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   onScanClick: () => void;
 }
 
-const ROLE_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  member:    { label: 'Member',    bg: '#e0e7ff', color: '#3730a3' },
-  eboard:    { label: 'E-Board',   bg: '#fef9c3', color: '#854d0e' },
-  osi_admin: { label: 'OSI Admin', bg: '#CFB87C', color: '#8B0000' },
-};
-
 export default function Header({ onScanClick }: HeaderProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, switchOrg } = useAuth();
 
-  const roleKey = user?.isOSIAdmin
-    ? 'osi_admin'
-    : (user?.organizations[0]?.role ?? 'member');
-  const badge = ROLE_BADGE[roleKey];
+  const isAdmin = !!user?.isOSIAdmin;
+  const orgs = user?.organizations ?? [];
 
   return (
     <header style={{ background: 'linear-gradient(135deg, #8B0000 0%, #5a0000 100%)' }}>
@@ -33,7 +25,7 @@ export default function Header({ onScanClick }: HeaderProps) {
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl font-bold text-white tracking-tight">OSI Resource Hub</h1>
+                  <h1 className="text-2xl font-bold text-white tracking-tight">The Commons</h1>
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                     style={{ backgroundColor: '#CFB87C', color: '#8B0000' }}>BETA</span>
                 </div>
@@ -50,17 +42,37 @@ export default function Header({ onScanClick }: HeaderProps) {
 
           {/* Right side */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            {/* User badge */}
             {user && (
               <div className="text-right hidden sm:block">
-                <div className="flex items-center gap-2 justify-end">
-                  <p className="text-sm font-semibold text-white">{user.name}</p>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                    style={{ backgroundColor: badge.bg, color: badge.color }}>
-                    {badge.label}
+                <p className="text-sm font-semibold text-white mb-1">{user.name}</p>
+
+                {/* Org switcher */}
+                {isAdmin ? (
+                  <span className="text-xs font-bold px-2 py-1 rounded-full"
+                    style={{ backgroundColor: '#CFB87C', color: '#8B0000' }}>
+                    OSI Admin
                   </span>
-                </div>
-                <p className="text-xs text-red-300 mt-0.5">{user.currentOrg}</p>
+                ) : orgs.length > 1 ? (
+                  <div className="relative inline-block">
+                    <select
+                      value={user.currentOrg}
+                      onChange={(e) => switchOrg(e.target.value)}
+                      className="appearance-none text-xs font-semibold pl-2.5 pr-6 py-1 rounded-full cursor-pointer focus:outline-none"
+                      style={{ backgroundColor: '#CFB87C', color: '#8B0000' }}
+                    >
+                      {orgs.map((o) => (
+                        <option key={o.org} value={o.org}>{o.org}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                      style={{ color: '#8B0000' }} />
+                  </div>
+                ) : (
+                  <span className="text-xs font-semibold px-2 py-1 rounded-full"
+                    style={{ backgroundColor: '#CFB87C', color: '#8B0000' }}>
+                    {user.currentOrg}
+                  </span>
+                )}
               </div>
             )}
 
