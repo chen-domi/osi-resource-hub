@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronRight, ArrowLeft, AlertCircle, Search, X, ShieldCheck, Plus } from 'lucide-react';
-import { AuthUser } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { BC_CLUBS } from '../data/clubs';
 
 type Role = 'eboard' | 'osi_admin';
-type Step = 'email' | 'login' | 'signup';
+type Step = 'landing' | 'login' | 'signup';
 
 const EBOARD_PIN = '5678';
 const OSI_PIN    = '2026';
@@ -106,66 +105,38 @@ function ClubCombobox({ value, onChange, exclude = [] }: {
   );
 }
 
-// ── Step 1: Email ─────────────────────────────────────────────────────────────
+// ── Step 1: Landing ───────────────────────────────────────────────────────────
 
-function EmailStep({ onExisting, onNew }: {
-  onExisting: (profile: StoredProfile) => void;
-  onNew: (name: string, email: string) => void;
+function LandingStep({ onSignIn, onSignUp }: {
+  onSignIn: () => void;
+  onSignUp: () => void;
 }) {
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-
-  function handleSubmit(e: React.SyntheticEvent) {
-    e.preventDefault();
-    const lower = email.toLowerCase();
-    if (!lower.endsWith('@bc.edu')) { setError('Must be a @bc.edu email address.'); return; }
-    const existing = loadProfile(lower);
-    if (existing) {
-      onExisting(existing);
-    } else {
-      const prefix = lower.split('@')[0];
-      const name = prefix.split(/[.\-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-      onNew(name, lower);
-    }
-  }
-
-  const inputClass = 'w-full px-4 py-3 rounded-xl text-sm bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:border-transparent';
-
   return (
     <Shell>
       <div className="w-full max-w-xs">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 text-2xl font-black shadow-lg"
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 text-2xl font-black shadow-lg"
             style={{ backgroundColor: '#CFB87C', color: '#6B0000' }}>BC</div>
-          <h1 className="text-2xl font-bold text-white">The Commons</h1>
-          <p className="mt-1 text-sm" style={{ color: 'rgba(207,184,124,0.55)' }}>
+          <h1 className="text-3xl font-bold text-white">The Commons</h1>
+          <p className="mt-2 text-sm" style={{ color: 'rgba(207,184,124,0.6)' }}>
             Boston College Student Organizations
           </p>
         </div>
 
-        <div className="rounded-2xl p-6 border border-white/15 shadow-2xl" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
-          <h2 className="text-base font-bold text-white mb-5 text-center">Sign in or create account</h2>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <input type="email" placeholder="username@bc.edu" value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                required className={inputClass}
-                style={{ '--tw-ring-color': '#CFB87C' } as React.CSSProperties} />
-              {error && (
-                <p className="flex items-center gap-1.5 text-xs mt-1.5" style={{ color: '#CFB87C' }}>
-                  <AlertCircle size={12} />{error}
-                </p>
-              )}
-            </div>
-            <button type="submit"
-              className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
-              style={{ backgroundColor: '#CFB87C', color: '#6B0000' }}>
-              Continue <ChevronRight size={16} />
-            </button>
-          </form>
+        <div className="space-y-3">
+          <button onClick={onSignIn}
+            className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
+            style={{ backgroundColor: '#CFB87C', color: '#6B0000' }}>
+            Sign In <ChevronRight size={16} />
+          </button>
+          <button onClick={onSignUp}
+            className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 border-2"
+            style={{ borderColor: 'rgba(207,184,124,0.5)', color: '#CFB87C', backgroundColor: 'transparent' }}>
+            Create Account <ChevronRight size={16} />
+          </button>
         </div>
 
-        <p className="text-center mt-4 text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+        <p className="text-center mt-6 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
           Only @bc.edu accounts may access this system
         </p>
       </div>
@@ -173,15 +144,20 @@ function EmailStep({ onExisting, onNew }: {
   );
 }
 
-// ── Step 2a: Login (returning user) ──────────────────────────────────────────
+// ── Step 2a: Sign In ──────────────────────────────────────────────────────────
 
-function LoginStep({ profile, onBack }: { profile: StoredProfile; onBack: () => void }) {
+function LoginStep({ onBack }: { onBack: () => void }) {
   const { login } = useAuth();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
+    const lower = email.toLowerCase();
+    if (!lower.endsWith('@bc.edu')) { setError('Must be a @bc.edu email address.'); return; }
+    const profile = loadProfile(lower);
+    if (!profile) { setError('No account found for this email.'); return; }
     if (password !== profile.password) { setError('Incorrect password. Please try again.'); return; }
     login({ name: profile.name, email: profile.email, organizations: profile.organizations, currentOrg: profile.currentOrg, isOSIAdmin: profile.isOSIAdmin });
   }
@@ -194,25 +170,29 @@ function LoginStep({ profile, onBack }: { profile: StoredProfile; onBack: () => 
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 text-2xl font-black shadow-lg"
             style={{ backgroundColor: '#CFB87C', color: '#6B0000' }}>BC</div>
-          <h1 className="text-2xl font-bold text-white">Welcome back!</h1>
-          <p className="mt-1 text-sm" style={{ color: 'rgba(207,184,124,0.7)' }}>{profile.email}</p>
+          <h1 className="text-2xl font-bold text-white">Welcome back</h1>
+          <p className="mt-1 text-sm" style={{ color: 'rgba(207,184,124,0.55)' }}>
+            Sign in to your account
+          </p>
         </div>
 
         <div className="rounded-2xl p-6 border border-white/15 shadow-2xl" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
           <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <input type="password" placeholder="Password" value={password} autoFocus
-                onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                required className={inputClass}
-                style={{ '--tw-ring-color': '#CFB87C' } as React.CSSProperties} />
-              {error && (
-                <p className="flex items-center gap-1.5 text-xs mt-1.5" style={{ color: '#CFB87C' }}>
-                  <AlertCircle size={12} />{error}
-                </p>
-              )}
-            </div>
+            <input type="email" placeholder="username@bc.edu" value={email} autoFocus
+              onChange={(e) => { setEmail(e.target.value); setError(''); }}
+              required className={inputClass}
+              style={{ '--tw-ring-color': '#CFB87C' } as React.CSSProperties} />
+            <input type="password" placeholder="Password" value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(''); }}
+              required className={inputClass}
+              style={{ '--tw-ring-color': '#CFB87C' } as React.CSSProperties} />
+            {error && (
+              <p className="flex items-center gap-1.5 text-xs" style={{ color: '#CFB87C' }}>
+                <AlertCircle size={12} />{error}
+              </p>
+            )}
             <button type="submit"
-              className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
+              className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 mt-1"
               style={{ backgroundColor: '#CFB87C', color: '#6B0000' }}>
               Sign In <ChevronRight size={16} />
             </button>
@@ -222,17 +202,19 @@ function LoginStep({ profile, onBack }: { profile: StoredProfile; onBack: () => 
         <button type="button" onClick={onBack}
           className="flex items-center gap-1.5 text-xs mt-4 mx-auto transition-colors hover:opacity-80"
           style={{ color: 'rgba(255,255,255,0.4)' }}>
-          <ArrowLeft size={13} /> Use a different account
+          <ArrowLeft size={13} /> Back
         </button>
       </div>
     </Shell>
   );
 }
 
-// ── Step 2b: Sign Up (new user) ───────────────────────────────────────────────
+// ── Step 2b: Sign Up ──────────────────────────────────────────────────────────
 
-function SignupStep({ name, email, onBack }: { name: string; email: string; onBack: () => void }) {
+function SignupStep({ onBack }: { onBack: () => void }) {
   const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [role, setRole] = useState<Role>('eboard');
   const [orgs, setOrgs] = useState<string[]>([]);
   const [pendingOrg, setPendingOrg] = useState('');
@@ -253,6 +235,9 @@ function SignupStep({ name, email, onBack }: { name: string; email: string; onBa
 
   function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
+    const lower = email.toLowerCase();
+    if (!lower.endsWith('@bc.edu')) { setEmailError('Must be a @bc.edu email address.'); return; }
+    if (loadProfile(lower)) { setEmailError('An account already exists for this email.'); return; }
 
     if (role === 'eboard' && orgs.length === 0) {
       setOrgError('Please add at least one organization.');
@@ -263,12 +248,15 @@ function SignupStep({ name, email, onBack }: { name: string; email: string; onBa
     if (pin !== expectedPin) { setPinError('Incorrect access code. Please try again.'); return; }
     if (password.length < 6) { setPasswordError('Password must be at least 6 characters.'); return; }
 
+    const prefix = lower.split('@')[0];
+    const name = prefix.split(/[.\-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
     const profile: StoredProfile = role === 'osi_admin'
-      ? { name, email, password, organizations: [], currentOrg: 'OSI', isOSIAdmin: true }
-      : { name, email, password, organizations: orgs.map((org) => ({ org, role: 'eboard' })), currentOrg: orgs[0], isOSIAdmin: false };
+      ? { name, email: lower, password, organizations: [], currentOrg: 'OSI', isOSIAdmin: true }
+      : { name, email: lower, password, organizations: orgs.map((org) => ({ org, role: 'eboard' })), currentOrg: orgs[0], isOSIAdmin: false };
 
     saveProfile(profile);
-    login({ name, email, organizations: profile.organizations, currentOrg: profile.currentOrg, isOSIAdmin: profile.isOSIAdmin });
+    login({ name, email: lower, organizations: profile.organizations, currentOrg: profile.currentOrg, isOSIAdmin: profile.isOSIAdmin });
   }
 
   return (
@@ -276,12 +264,25 @@ function SignupStep({ name, email, onBack }: { name: string; email: string; onBa
       <div className="w-full max-w-sm">
         <div className="bg-white rounded-2xl p-7 shadow-2xl">
           <div className="text-center mb-5">
-            <h2 className="text-xl font-bold text-gray-900">Welcome, {name}!</h2>
-            <p className="mt-1 text-sm text-gray-500">Let's set up your account.</p>
-            <p className="text-xs text-gray-400 mt-0.5">You'll only need to do this once.</p>
+            <h2 className="text-xl font-bold text-gray-900">Create your account</h2>
+            <p className="mt-1 text-sm text-gray-500">You'll only need to do this once.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">BC Email</label>
+              <input type="email" placeholder="username@bc.edu" value={email} autoFocus
+                onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
+                required
+                className="w-full px-4 py-3 rounded-xl text-sm border-2 border-gray-200 focus:outline-none focus:border-red-800 placeholder-gray-400 text-gray-800" />
+              {emailError && (
+                <p className="flex items-center gap-1.5 text-xs mt-1.5 text-red-600">
+                  <AlertCircle size={12} />{emailError}
+                </p>
+              )}
+            </div>
+
             {/* Role */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Role</label>
@@ -309,7 +310,6 @@ function SignupStep({ name, email, onBack }: { name: string; email: string; onBa
                   Organizations <span className="font-normal text-gray-400">(add all you're E-Board for)</span>
                 </label>
 
-                {/* Added orgs list */}
                 {orgs.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {orgs.map((org) => (
@@ -325,7 +325,6 @@ function SignupStep({ name, email, onBack }: { name: string; email: string; onBa
                   </div>
                 )}
 
-                {/* Add row */}
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <ClubCombobox value={pendingOrg} onChange={(v) => { setPendingOrg(v); setOrgError(''); }} exclude={orgs} />
@@ -393,22 +392,14 @@ function SignupStep({ name, email, onBack }: { name: string; email: string; onBa
 // ── Coordinator ───────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
-  const [step, setStep] = useState<Step>('email');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [existingProfile, setExistingProfile] = useState<StoredProfile | null>(null);
+  const [step, setStep] = useState<Step>('landing');
 
   switch (step) {
-    case 'email':
-      return (
-        <EmailStep
-          onExisting={(p) => { setExistingProfile(p); setStep('login'); }}
-          onNew={(n, em) => { setName(n); setEmail(em); setStep('signup'); }}
-        />
-      );
+    case 'landing':
+      return <LandingStep onSignIn={() => setStep('login')} onSignUp={() => setStep('signup')} />;
     case 'login':
-      return <LoginStep profile={existingProfile!} onBack={() => setStep('email')} />;
+      return <LoginStep onBack={() => setStep('landing')} />;
     case 'signup':
-      return <SignupStep name={name} email={email} onBack={() => setStep('email')} />;
+      return <SignupStep onBack={() => setStep('landing')} />;
   }
 }
