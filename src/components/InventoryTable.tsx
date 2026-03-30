@@ -34,7 +34,7 @@ export default function InventoryTable({
       <div className="text-center py-16 text-gray-400">
         <Package size={40} className="mx-auto mb-3 opacity-40" />
         <p className="font-medium">
-          {viewMode === 'club' ? 'No items in your club inventory yet.' : 'No items match your search.'}
+          {viewMode === 'club' ? 'No items in your inventory yet.' : 'No items match your search.'}
         </p>
       </div>
     );
@@ -152,7 +152,7 @@ function QRPopover({ qrCode }: { qrCode: string }) {
 
 function InventoryRow({ item, isCheckedOut, viewMode, canEdit, canToggle, onScanClick, onEdit, onDelete, onToggleShare }: RowProps) {
   return (
-    <tr className="bg-white hover:bg-amber-50 transition-colors">
+    <tr className={`transition-colors ${isCheckedOut ? 'bg-gray-50 hover:bg-gray-100' : 'bg-white hover:bg-amber-50'}`}>
       {/* QR Code */}
       <td className="px-4 py-3">
         <QRPopover qrCode={item.qrCode} />
@@ -160,8 +160,12 @@ function InventoryRow({ item, isCheckedOut, viewMode, canEdit, canToggle, onScan
 
       {/* Name + category */}
       <td className="px-4 py-3">
-        <p className="font-medium text-gray-800">{item.name}</p>
-        <span className={`mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full ${categoryColors[item.category] ?? 'bg-gray-100 text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ backgroundColor: isCheckedOut ? '#dc2626' : '#16a34a' }} />
+          <p className={`font-medium ${isCheckedOut ? 'text-gray-400' : 'text-gray-800'}`}>{item.name}</p>
+        </div>
+        <span className={`mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full ml-4 ${isCheckedOut ? 'bg-gray-100 text-gray-400' : (categoryColors[item.category] ?? 'bg-gray-100 text-gray-600')}`}>
           {item.category}
         </span>
       </td>

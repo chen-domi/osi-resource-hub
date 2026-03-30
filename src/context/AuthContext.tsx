@@ -16,6 +16,8 @@ interface AuthContextValue {
   completeProfileSetup: (data: ProfileSetupData) => Promise<void>;
   logout: () => Promise<void>;
   switchOrg: (org: string) => void;
+  joinOrg: (orgName: string, pin: string) => Promise<'member' | 'eboard'>;
+  leaveOrg: (orgName: string) => Promise<void>;
   devLogin: () => void;
 }
 
@@ -110,8 +112,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const switchOrg = useCallback((org: string) => {
+    if (supabaseUser) {
+      supabase.from('profiles').update({ current_org: org }).eq('id', supabaseUser.id);
+    }
     setUser((prev) => prev ? { ...prev, currentOrg: org } : prev);
-  }, []);
+  }, [supabaseUser]);
+
+  const joinOrg = useCallback(async (orgName: string, pin: string): Promise<'member' | 'eboard'> => {
+    const { data } = await supabase
+      .from('organizations')
+      .select('member_pin, eboard_pin')
+      .eq('name', orgName)
+      .single();
+    if (!data) throw new Error('Organization not found');
+    let role: 'member' | 'eboard';
+    if (pin === data.eboard_pin) role = 'eboard';
+    else if (pin === data.member_pin) role = 'member';
+    else throw new Error('Incorrect PIN');
+    const existing = (user?.organizations ?? []).filter((o) => o.org !== orgName);
+    const newOrgs = [...existing, { org: orgName, role }];
+    const newCurrentOrg = user?.currentOrg || orgName;
+    if (supabaseUser) {
+      await supabase.from('profiles').update({ organizations: newOrgs, current_org: newCurrentOrg }).eq('id', supabaseUser.id);
+    }
+    setUser((prev) => prev ? { ...prev, organizations: newOrgs, currentOrg: newCurrentOrg } : prev);
+    return role;
+  }, [user, supabaseUser]);
+
+  const leaveOrg = useCallback(async (orgName: string) => {
+    const newOrgs = (user?.organizations ?? []).filter((o) => o.org !== orgName);
+    const newCurrentOrg = user?.currentOrg === orgName ? (newOrgs[0]?.org ?? '') : (user?.currentOrg ?? '');
+    if (supabaseUser) {
+      await supabase.from('profiles').update({ organizations: newOrgs, current_org: newCurrentOrg }).eq('id', supabaseUser.id);
+    }
+    setUser((prev) => prev ? { ...prev, organizations: newOrgs, currentOrg: newCurrentOrg } : prev);
+  }, [user, supabaseUser]);
 
   const devLogin = useCallback(() => {
     setUser({
@@ -131,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, needsProfileSetup, completeProfileSetup, logout, switchOrg, devLogin }}>
+    <AuthContext.Provider value={{ user, loading, needsProfileSetup, completeProfileSetup, logout, switchOrg, joinOrg, leaveOrg, devLogin }}>
       {children}
     </AuthContext.Provider>
   );

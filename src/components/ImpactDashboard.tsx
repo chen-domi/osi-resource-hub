@@ -1,5 +1,5 @@
-import React from 'react';
-import { Package, Bell, Zap, Lightbulb, Plus, ArrowLeftRight, CheckCircle2, Clock, QrCode } from 'lucide-react';
+import React, { useState } from 'react';
+import { Package, Bell, Zap, Lightbulb, Plus, ArrowLeftRight, CheckCircle2, Clock, QrCode, Settings, X, AlertCircle } from 'lucide-react';
 import { InventoryItem } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,10 +10,115 @@ interface ImpactDashboardProps {
   onScanClick: () => void;
 }
 
+function OrgManagerModal({ onClose }: { onClose: () => void }) {
+  const { user, joinOrg, leaveOrg, switchOrg } = useAuth();
+  const [orgName, setOrgName] = useState('');
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const inputClass = 'w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:border-transparent bg-white';
+  const ring = { '--tw-ring-color': '#8B0000' } as React.CSSProperties;
+
+  async function handleJoin(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await joinOrg(orgName.trim(), pin.trim());
+      setOrgName('');
+      setPin('');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+      onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="font-bold text-gray-800">Manage Organizations</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Current orgs */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Your Organizations</p>
+            {(user?.organizations.length ?? 0) === 0 ? (
+              <p className="text-sm text-gray-400 italic">You haven't joined any organizations yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {user?.organizations.map(({ org, role }) => (
+                  <div key={org} className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: org === user.currentOrg ? '#8B0000' : '#d1d5db' }} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{org}</p>
+                        <p className="text-xs text-gray-400 capitalize">{role}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                      {org !== user.currentOrg && (
+                        <button onClick={() => switchOrg(org)}
+                          className="text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-white transition-colors">
+                          Switch
+                        </button>
+                      )}
+                      {org === user.currentOrg && (
+                        <span className="text-xs px-2 py-1 rounded-lg font-semibold"
+                          style={{ backgroundColor: '#fff1f2', color: '#8B0000' }}>Active</span>
+                      )}
+                      <button onClick={() => leaveOrg(org)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        title="Leave org">
+                        <X size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Join org */}
+          <div className="pt-1 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Join an Organization</p>
+            <form onSubmit={handleJoin} className="space-y-2">
+              <input type="text" value={orgName} onChange={(e) => setOrgName(e.target.value)}
+                placeholder="Organization name" required className={inputClass} style={ring} />
+              <input type="password" value={pin} onChange={(e) => setPin(e.target.value)}
+                placeholder="PIN" required className={inputClass} style={ring} />
+              {error && (
+                <div className="flex items-center gap-1.5 text-xs text-red-600">
+                  <AlertCircle size={12} /> {error}
+                </div>
+              )}
+              <button type="submit" disabled={loading}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                style={{ backgroundColor: '#8B0000' }}>
+                {loading ? 'Joining…' : 'Join'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ImpactDashboard({ items, onAddItem, onGoToMarketplace, onScanClick }: ImpactDashboardProps) {
   const { user } = useAuth();
+  const [showOrgManager, setShowOrgManager] = useState(false);
   const isAdmin = !!user?.isOSIAdmin;
-  const canAdd = isAdmin || user?.organizations[0]?.role === 'eboard';
+  const canAdd = isAdmin || user?.organizations.find((o) => o.org === user.currentOrg)?.role === 'eboard';
 
   const myItems = isAdmin ? items : items.filter((i) => i.org === user?.currentOrg);
   const myShared = myItems.filter((i) => i.shared);
@@ -37,9 +142,16 @@ export default function ImpactDashboard({ items, onAddItem, onGoToMarketplace, o
               style={{ backgroundColor: '#fff1f2', color: '#8B0000' }}>
               <Package size={16} />
             </div>
-            <span className="text-sm font-bold text-gray-700 truncate">
-              {isAdmin ? 'All Organizations' : (user?.currentOrg ?? 'Your Org')}
+            <span className="text-sm font-bold text-gray-700 truncate flex-1 min-w-0">
+              {isAdmin ? 'All Organizations' : (user?.currentOrg || 'No Org')}
             </span>
+            {!isAdmin && (
+              <button onClick={() => setShowOrgManager(true)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0"
+                title="Manage organizations">
+                <Settings size={14} />
+              </button>
+            )}
           </div>
           <p className="text-2xl font-bold text-gray-800">{myItems.length}</p>
           <p className="text-xs text-gray-500 mt-0.5">{myItems.length === 1 ? 'item' : 'items'} in inventory</p>
@@ -124,6 +236,8 @@ export default function ImpactDashboard({ items, onAddItem, onGoToMarketplace, o
           </button>
         </div>
       )}
+
+      {showOrgManager && <OrgManagerModal onClose={() => setShowOrgManager(false)} />}
     </div>
   );
 }

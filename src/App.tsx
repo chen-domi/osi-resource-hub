@@ -82,7 +82,10 @@ function MainApp() {
   // Load inventory from Supabase
   useEffect(() => {
     supabase.from('inventory').select('*').order('id').then(({ data }) => {
-      if (data) setItems(data.map(rowToItem));
+      if (data) {
+        setItems(data.map(rowToItem));
+        setCheckedOutItems(data.filter((r) => r.checked_out).map((r) => r.qr_code));
+      }
       setLoadingItems(false);
     });
   }, []);
@@ -139,10 +142,11 @@ function MainApp() {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, shared } : i)));
   };
 
-  const handleScan = (qrCode: string) => {
+  const handleScan = async (qrCode: string) => {
     const item = items.find((i) => i.qrCode === qrCode);
     if (!item) return;
     const isOut = checkedOutItems.includes(qrCode);
+    await supabase.from('inventory').update({ checked_out: !isOut }).eq('qr_code', qrCode);
     setCheckedOutItems((prev) => isOut ? prev.filter((q) => q !== qrCode) : [...prev, qrCode]);
     setScanResult({ item, action: isOut ? 'Checked In' : 'Checked Out' });
   };
@@ -172,7 +176,7 @@ function MainApp() {
   const globalItems = items;
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
-    { key: 'club-inventory',   label: 'Club Inventory',   icon: <Package size={15} />,       count: clubItems.length },
+    { key: 'club-inventory',   label: 'Your Inventory',   icon: <Package size={15} />,       count: clubItems.length },
     { key: 'global-inventory', label: 'Global Inventory', icon: <Globe size={15} />,          count: globalItems.length },
     { key: 'marketplace',      label: 'Marketplace',      icon: <ArrowLeftRight size={15} />, count: items.filter((i) => i.shared).length },
     { key: 'wanted',           label: 'Wanted',           icon: <Inbox size={15} />,          count: requestCount },
