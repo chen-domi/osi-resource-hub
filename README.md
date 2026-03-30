@@ -1,70 +1,143 @@
-# Getting Started with Create React App
+# The Commons — OSI Resource Hub
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A shared inventory and resource-sharing platform for Boston College student organizations. Built for the Office of Student Involvement (OSI) to help clubs track equipment, share resources across organizations, and reduce waste on campus.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## What It Does
 
-### `npm start`
+- **Inventory management** — Track your org's items with QR codes, quantities, locations, and checkout status
+- **Sharing marketplace** — List items other orgs can borrow and request items you need
+- **QR check-in/out** — Scan QR codes to mark items as checked out or returned, state persists across sessions
+- **Wanted board** — Post items your org is looking for; other orgs can respond
+- **Role-based access** — Members can view; eboard members can add/edit/delete items; OSI admins see everything
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Tech Stack
 
-### `npm test`
+| Layer | Technology |
+|---|---|
+| Frontend | React 19 + TypeScript |
+| Styling | Tailwind CSS |
+| Backend / DB | Supabase (PostgreSQL) |
+| Auth | Supabase Auth (Google OAuth + email) |
+| QR Codes | `qrcode.react`, `html5-qrcode` |
+| Deployment | Vercel |
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## Getting Started
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 1. Clone the repo
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+git clone https://github.com/chen-domi/osi-resource-hub.git
+cd osi-resource-hub
+npm install
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### 2. Set up environment variables
 
-### `npm run eject`
+Copy `.env.example` to `.env` and fill in your Supabase credentials:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```bash
+cp .env.example .env
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```
+REACT_APP_SUPABASE_URL=https://your-project-ref.supabase.co
+REACT_APP_SUPABASE_ANON_KEY=your-anon-key-here
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Find these in your Supabase project under **Settings → API**.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### 3. Run the database migrations
 
-## Learn More
+In the Supabase SQL Editor, run each migration file in order:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```
+supabase/migrations/001_profiles.sql
+supabase/migrations/002_inventory.sql
+supabase/migrations/003_item_requests.sql
+supabase/migrations/004_checkouts_and_orgs.sql
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### 4. Configure Supabase Auth
 
-### Code Splitting
+In **Authentication → URL Configuration**:
+- Set **Site URL** to `http://localhost:3000` (or your Vercel URL for production)
+- Add your URL to **Redirect URLs**
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Enable **Google** as an OAuth provider under **Authentication → Providers**.
 
-### Analyzing the Bundle Size
+### 5. Start the app
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```bash
+npm start
+```
 
-### Making a Progressive Web App
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## Project Structure
 
-### Advanced Configuration
+```
+src/
+  App.tsx                  # Root app, tab management, Supabase data fetching
+  components/
+    Header.tsx             # Top nav with org switcher and sign out
+    ImpactDashboard.tsx    # Stats cards, quick actions, org manager
+    InventoryTable.tsx     # Item table with QR popover, status indicators
+    AddItemModal.tsx       # Add / edit item form
+    SharingMarketplace.tsx # Browse shared items from all orgs
+    RequestsBoard.tsx      # Wanted items board
+    QRScannerModal.tsx     # Camera QR scanner
+    LoginPage.tsx          # Sign in / sign up / profile setup
+    Combobox.tsx           # Reusable searchable dropdown
+  context/
+    AuthContext.tsx        # Auth state, joinOrg, leaveOrg, switchOrg
+  data/
+    clubs.ts               # Full list of BC student organizations
+    inventory.ts           # Demo QR scan data
+  lib/
+    supabase.ts            # Supabase client
+  types/
+    index.ts               # Shared TypeScript types
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+supabase/
+  migrations/              # SQL migrations (run in order)
+```
 
-### Deployment
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## Roles & Permissions
 
-### `npm run build` fails to minify
+| Role | Can do |
+|---|---|
+| **Member** | View all inventory, browse marketplace, post wanted requests |
+| **Eboard** | All of the above + add/edit/delete items for their org, toggle marketplace listing |
+| **OSI Admin** | Full access across all organizations |
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Users sign up with a BC email (`@bc.edu`) and join organizations using a PIN. The default PIN for all organizations is `0000`.
+
+---
+
+## Deployment
+
+The app is deployed on Vercel. Any push to `main` triggers an automatic redeploy.
+
+Set the following environment variables in Vercel **Settings → Environment Variables**:
+
+```
+REACT_APP_SUPABASE_URL
+REACT_APP_SUPABASE_ANON_KEY
+GENERATE_SOURCEMAP=false
+```
+
+---
+
+## Development Notes
+
+- A **dev login** button appears in development mode (`localhost`) to bypass OAuth — useful for testing without a Supabase session
+- Supabase Row Level Security (RLS) is enforced at the database level; dev login bypasses this and falls back to local state for mutations
+- QR codes are auto-generated from org abbreviation + item name + ID (e.g. `BC-UGBC-TABLE-001`)
