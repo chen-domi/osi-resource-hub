@@ -19,10 +19,10 @@ CREATE POLICY "Authenticated can read organizations"
 
 -- Seed the orgs already present in inventory
 INSERT INTO public.organizations (name, member_pin, eboard_pin) VALUES
-  ('Campus Activities Board', 'cab-member', 'cab-eboard'),
-  ('UGBC',                    'ugbc-member', 'ugbc-eboard'),
-  ('Il Circolo Italiano',     'ici-member',  'ici-eboard'),
-  ('African Student Organization', 'aso-member', 'aso-eboard'),
-  ('American Red Cross of BC',    'arc-member', 'arc-eboard'),
-  ('Environmental Club',          'env-member', 'env-eboard')
+  ('Campus Activities Board',      '0000', '0000'),
+  ('UGBC',                         '0000', '0000'),
+  ('Il Circolo Italiano',          '0000', '0000'),
+  ('African Student Organization', '0000', '0000'),
+  ('American Red Cross of BC',     '0000', '0000'),
+  ('Environmental Club',           '0000', '0000')
 ON CONFLICT (name) DO NOTHING;

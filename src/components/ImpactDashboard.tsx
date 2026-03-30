@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, Bell, Zap, Lightbulb, Plus, ArrowLeftRight, CheckCircle2, Clock, QrCode, Settings, X, AlertCircle } from 'lucide-react';
 import { InventoryItem } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+import Combobox from './Combobox';
 
 interface ImpactDashboardProps {
   items: InventoryItem[];
@@ -16,6 +18,13 @@ function OrgManagerModal({ onClose }: { onClose: () => void }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [availableOrgs, setAvailableOrgs] = useState<string[]>([]);
+
+  useEffect(() => {
+    supabase.from('organizations').select('name').order('name').then(({ data }) => {
+      if (data) setAvailableOrgs(data.map((r) => r.name));
+    });
+  }, []);
 
   const inputClass = 'w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:border-transparent bg-white';
   const ring = { '--tw-ring-color': '#8B0000' } as React.CSSProperties;
@@ -92,8 +101,13 @@ function OrgManagerModal({ onClose }: { onClose: () => void }) {
           <div className="pt-1 border-t border-gray-100">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Join an Organization</p>
             <form onSubmit={handleJoin} className="space-y-2">
-              <input type="text" value={orgName} onChange={(e) => setOrgName(e.target.value)}
-                placeholder="Organization name" required className={inputClass} style={ring} />
+              <Combobox
+                options={availableOrgs}
+                value={orgName}
+                onChange={setOrgName}
+                placeholder="Search organizations…"
+                style={ring}
+              />
               <input type="password" value={pin} onChange={(e) => setPin(e.target.value)}
                 placeholder="PIN" required className={inputClass} style={ring} />
               {error && (
