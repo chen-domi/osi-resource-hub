@@ -17,7 +17,9 @@ export default function ImpactDashboard({ items, onAddItem, onGoToMarketplace, o
 
   const myItems = isAdmin ? items : items.filter((i) => i.org === user?.currentOrg);
   const myShared = myItems.filter((i) => i.shared);
-  const tipItem = myItems.find((i) => !i.shared) ?? null;
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  const tipItem = myItems.find((i) => !i.shared && (!i.createdAt || new Date(i.createdAt) <= threeMonthsAgo)) ?? null;
 
   // Demo notification counts
   const pendingRequests = 2;
@@ -111,7 +113,7 @@ export default function ImpactDashboard({ items, onAddItem, onGoToMarketplace, o
           style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a' }}>
           <Lightbulb size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
           <span className="text-sm text-amber-800 flex-1 min-w-0">
-            <span className="font-semibold">Tip:</span> You have unshared items that other orgs could borrow.
+            <span className="font-semibold">Tip:</span> You have items added 3+ months ago that aren't shared.
             Consider listing on the marketplace:{' '}
             <span className="font-semibold">{tipItem.name}</span>
           </span>

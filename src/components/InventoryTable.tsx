@@ -1,9 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Package, QrCode, MapPin, Pencil, Trash2, Lock, Eye, Printer } from 'lucide-react';
+import { Package, QrCode, MapPin, Pencil, Trash2, Lock, Printer } from 'lucide-react';
 import { InventoryItem } from '../types';
 import { categoryColors } from '../data/inventory';
 import { useAuth } from '../context/AuthContext';
+
+function timeAgo(dateStr?: string): string | null {
+  if (!dateStr) return null;
+  const months = (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24 * 30.5);
+  if (months < 1) return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (months < 12) return `${Math.floor(months)}mo ago`;
+  const yrs = Math.floor(months / 12);
+  return `${yrs}yr${yrs > 1 ? 's' : ''} ago`;
+}
 
 interface InventoryTableProps {
   items: InventoryItem[];
@@ -31,8 +40,8 @@ export default function InventoryTable({
     );
   }
 
-  const globalCols = ['QR Code', 'Item', 'Organization', 'Location', 'Status', 'Qty', 'Last Used', ''];
-  const clubCols   = ['QR Code', 'Item', 'Location', 'Status', 'Qty', 'Marketplace', 'Last Used', ''];
+  const globalCols = ['QR Code', 'Item', 'Organization', 'Location', 'Status', 'Qty', 'Last Used', 'Added', ''];
+  const clubCols   = ['QR Code', 'Item', 'Location', 'Status', 'Qty', 'Marketplace', 'Last Used', 'Added', ''];
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
@@ -85,18 +94,7 @@ interface RowProps {
   onToggleShare: (id: number, shared: boolean) => void;
 }
 
-function QRPopover({ qrCode }: { qrCode: string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
+function QRModal({ qrCode, onClose }: { qrCode: string; onClose: () => void }) {
   function handlePrint() {
     const win = window.open('', '_blank', 'width=300,height=350');
     if (!win) return;
@@ -113,32 +111,41 @@ function QRPopover({ qrCode }: { qrCode: string }) {
   }
 
   return (
-    <div ref={ref} className="relative inline-block">
-      <div className="flex items-center gap-1">
-        <button onClick={() => { }} title="Scan item"
-          className="flex items-center gap-1.5 font-mono text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-all hover:shadow-sm active:scale-95"
-          style={{ borderColor: '#CFB87C', color: '#8B0000', backgroundColor: '#fffbeb' }}>
-          <QrCode size={12} />{qrCode}
-        </button>
-        <button onClick={() => setOpen((o) => !o)} title="View QR code"
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
-          <Eye size={13} />
-        </button>
-      </div>
-
-      {open && (
-        <div className="absolute left-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-2xl shadow-xl p-4 flex flex-col items-center gap-2"
-          style={{ minWidth: 180 }}>
-          <QRCodeSVG value={qrCode} size={140} bgColor="#ffffff" fgColor="#6B0000" />
-          <p className="text-xs font-mono text-gray-500 text-center">{qrCode}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+      onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4"
+        onClick={(e) => e.stopPropagation()}>
+        <QRCodeSVG value={qrCode} size={260} bgColor="#ffffff" fgColor="#6B0000" />
+        <p className="text-sm font-mono text-gray-500 text-center">{qrCode}</p>
+        <div className="flex gap-3 w-full">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+            Close
+          </button>
           <button onClick={handlePrint}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors hover:opacity-90 text-white w-full justify-center"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors hover:opacity-90"
             style={{ backgroundColor: '#8B0000' }}>
-            <Printer size={12} /> Print
+            <Printer size={14} /> Print
           </button>
         </div>
-      )}
+      </div>
     </div>
+  );
+}
+
+function QRPopover({ qrCode }: { qrCode: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)} title="View QR code"
+        className="flex items-center gap-1.5 font-mono text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-all hover:shadow-sm active:scale-95"
+        style={{ borderColor: '#CFB87C', color: '#8B0000', backgroundColor: '#fffbeb' }}>
+        <QrCode size={12} />{qrCode}
+      </button>
+      {open && <QRModal qrCode={qrCode} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -209,6 +216,9 @@ function InventoryRow({ item, isCheckedOut, viewMode, canEdit, canToggle, onScan
 
       {/* Last Used */}
       <td className="px-4 py-3 text-xs text-gray-400">{item.lastUsed}</td>
+
+      {/* Added */}
+      <td className="px-4 py-3 text-xs text-gray-400">{timeAgo(item.createdAt) ?? '—'}</td>
 
       {/* Actions */}
       <td className="px-4 py-3">

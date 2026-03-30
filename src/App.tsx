@@ -16,15 +16,16 @@ import { InventoryItem, ScanResult } from './types';
 
 function rowToItem(row: any): InventoryItem {
   return {
-    id:       row.id,
-    qrCode:   row.qr_code,
-    name:     row.name,
-    category: row.category,
-    org:      row.org,
-    location: row.location,
-    quantity: row.quantity,
-    lastUsed: row.last_used,
-    shared:   row.shared,
+    id:        row.id,
+    qrCode:    row.qr_code,
+    name:      row.name,
+    category:  row.category,
+    org:       row.org,
+    location:  row.location,
+    quantity:  row.quantity,
+    lastUsed:  row.last_used,
+    shared:    row.shared,
+    createdAt: row.created_at,
   };
 }
 
@@ -62,6 +63,7 @@ function MainApp() {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterOrg, setFilterOrg] = useState('');
+  const [requestCount, setRequestCount] = useState(0);
 
   const isAdmin = !!user?.isOSIAdmin;
   const userRole = user?.organizations[0]?.role ?? 'member';
@@ -85,17 +87,25 @@ function MainApp() {
     });
   }, []);
 
+  // Load request count for tab badge
+  useEffect(() => {
+    supabase.from('item_requests').select('*', { count: 'exact', head: true }).then(({ count }) => {
+      if (count !== null) setRequestCount(count);
+    });
+  }, []);
+
   const handleSaveItem = async (saved: InventoryItem) => {
     const isNew = !items.some((i) => i.id === saved.id);
     const row = {
-      qr_code:  saved.qrCode,
-      name:     saved.name,
-      category: saved.category,
-      org:      saved.org,
-      location: saved.location,
-      quantity: saved.quantity,
-      last_used: saved.lastUsed,
-      shared:   saved.shared,
+      qr_code:    saved.qrCode,
+      name:       saved.name,
+      category:   saved.category,
+      org:        saved.org,
+      location:   saved.location,
+      quantity:   saved.quantity,
+      last_used:  saved.lastUsed,
+      shared:     saved.shared,
+      created_at: saved.createdAt ?? new Date().toISOString(),
     };
     if (isNew) {
       const { data, error } = await supabase
@@ -165,7 +175,7 @@ function MainApp() {
     { key: 'club-inventory',   label: 'Club Inventory',   icon: <Package size={15} />,       count: clubItems.length },
     { key: 'global-inventory', label: 'Global Inventory', icon: <Globe size={15} />,          count: globalItems.length },
     { key: 'marketplace',      label: 'Marketplace',      icon: <ArrowLeftRight size={15} />, count: items.filter((i) => i.shared).length },
-    { key: 'wanted',           label: 'Wanted',           icon: <Inbox size={15} /> },
+    { key: 'wanted',           label: 'Wanted',           icon: <Inbox size={15} />,          count: requestCount },
   ];
 
   return (
@@ -286,7 +296,10 @@ function MainApp() {
                   <SharingMarketplace items={items} checkedOutItems={checkedOutItems} filterCategory={filterCategory} filterOrg={filterOrg} />
                 )}
                 {activeTab === 'wanted' && (
-                  <RequestsBoard onGoToInventory={() => setActiveTab('club-inventory')} />
+                  <RequestsBoard
+                    onGoToInventory={() => setActiveTab('club-inventory')}
+                    onCountChange={setRequestCount}
+                  />
                 )}
               </>
             )}

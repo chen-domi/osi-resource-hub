@@ -8,6 +8,7 @@ export interface InventoryItem {
   quantity: number;
   lastUsed: string;
   shared: boolean;
+  createdAt?: string;
   checkedOutTo?: {
     name: string;
     email: string;

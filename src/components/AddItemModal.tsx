@@ -40,6 +40,9 @@ export default function AddItemModal({ item, nextId, onSave, onClose }: AddItemM
   const [location, setLocation] = useState(item?.location ?? '');
   const [quantity, setQuantity] = useState(String(item?.quantity ?? 1));
   const [lastUsed, setLastUsed] = useState(item?.lastUsed === '—' ? '' : (item?.lastUsed ?? ''));
+  const [dateAdded, setDateAdded] = useState(
+    item?.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]
+  );
   const [shared, setShared] = useState(item?.shared ?? false);
   const [qrCode, setQrCode] = useState(item?.qrCode ?? '');
   const [qrTouched, setQrTouched] = useState(editing);
@@ -67,6 +70,7 @@ export default function AddItemModal({ item, nextId, onSave, onClose }: AddItemM
       location: location.trim(),
       quantity: qty,
       lastUsed: lastUsed.trim() || '—',
+      createdAt: dateAdded ? new Date(dateAdded).toISOString() : undefined,
       shared,
       qrCode: finalQR,
     });
@@ -127,11 +131,18 @@ export default function AddItemModal({ item, nextId, onSave, onClose }: AddItemM
             />
           </div>
 
-          {/* Last Used */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Last Used At <span className="font-normal text-gray-400">(event name)</span></label>
-            <input type="text" value={lastUsed} onChange={(e) => setLastUsed(e.target.value)}
-              placeholder="e.g. Student Involvement Fair" className={inputClass} style={ring} />
+          {/* Last Used + Date Added */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Last Used At <span className="font-normal text-gray-400">(event)</span></label>
+              <input type="text" value={lastUsed} onChange={(e) => setLastUsed(e.target.value)}
+                placeholder="e.g. Student Involvement Fair" className={inputClass} style={ring} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Date Added</label>
+              <input type="date" value={dateAdded} onChange={(e) => setDateAdded(e.target.value)}
+                className={inputClass} style={ring} />
+            </div>
           </div>
 
           {/* QR Code */}

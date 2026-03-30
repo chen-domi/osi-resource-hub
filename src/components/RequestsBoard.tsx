@@ -138,9 +138,10 @@ function PostRequestModal({ onClose, onPosted }: { onClose: () => void; onPosted
 
 // ── Request card ───────────────────────────────────────────────────────────────
 
-function RequestCard({ request, canDelete, onDelete, onWeHaveThis }: {
+function RequestCard({ request, canDelete, isOwn, onDelete, onWeHaveThis }: {
   request: ItemRequest;
   canDelete: boolean;
+  isOwn: boolean;
   onDelete: () => void;
   onWeHaveThis: () => void;
 }) {
@@ -174,11 +175,18 @@ function RequestCard({ request, canDelete, onDelete, onWeHaveThis }: {
 
       <div className="flex items-center justify-between mt-auto pt-1">
         <span className="text-xs text-gray-400">{date}</span>
-        <button onClick={onWeHaveThis}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90 active:scale-95 text-white"
-          style={{ backgroundColor: '#8B0000' }}>
-          We have this! <ChevronRight size={12} />
-        </button>
+        {isOwn ? (
+          <span className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+            style={{ backgroundColor: '#f3f4f6', color: '#9ca3af' }}>
+            Your request
+          </span>
+        ) : (
+          <button onClick={onWeHaveThis}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-90 active:scale-95 text-white"
+            style={{ backgroundColor: '#8B0000' }}>
+            We have this! <ChevronRight size={12} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -186,7 +194,7 @@ function RequestCard({ request, canDelete, onDelete, onWeHaveThis }: {
 
 // ── Main board ─────────────────────────────────────────────────────────────────
 
-export default function RequestsBoard({ onGoToInventory }: { onGoToInventory: () => void }) {
+export default function RequestsBoard({ onGoToInventory, onCountChange }: { onGoToInventory: () => void; onCountChange?: (n: number) => void }) {
   const { user } = useAuth();
   const [requests, setRequests] = useState<ItemRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,19 +204,22 @@ export default function RequestsBoard({ onGoToInventory }: { onGoToInventory: ()
 
   useEffect(() => {
     supabase.from('item_requests').select('*').order('created_at', { ascending: false }).then(({ data }) => {
-      if (data) setRequests(data.map(rowToRequest));
+      if (data) {
+        setRequests(data.map(rowToRequest));
+        onCountChange?.(data.length);
+      }
       setLoading(false);
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handlePosted(r: ItemRequest) {
-    setRequests((prev) => [r, ...prev]);
+    setRequests((prev) => { const next = [r, ...prev]; onCountChange?.(next.length); return next; });
     setShowPost(false);
   }
 
   async function handleDelete(id: number) {
     await supabase.from('item_requests').delete().eq('id', id);
-    setRequests((prev) => prev.filter((r) => r.id !== id));
+    setRequests((prev) => { const next = prev.filter((r) => r.id !== id); onCountChange?.(next.length); return next; });
   }
 
   return (
@@ -246,6 +257,7 @@ export default function RequestsBoard({ onGoToInventory }: { onGoToInventory: ()
               <RequestCard
                 key={r.id}
                 request={r}
+                isOwn={isOwn}
                 canDelete={isOwn || !!user?.isOSIAdmin}
                 onDelete={() => handleDelete(r.id)}
                 onWeHaveThis={onGoToInventory}
