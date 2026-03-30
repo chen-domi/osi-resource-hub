@@ -98,12 +98,13 @@ function QRModal({ qrCode, onClose }: { qrCode: string; onClose: () => void }) {
   function handlePrint() {
     const win = window.open('', '_blank', 'width=300,height=350');
     if (!win) return;
+    const sc = String.fromCharCode(60) + '/script>';
     win.document.write(`
       <html><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:monospace;gap:12px">
         <div id="qr"></div>
         <p style="font-size:12px;color:#555">${qrCode}</p>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-        <script>new QRCode(document.getElementById('qr'),{text:'${qrCode}',width:180,height:180});<\/script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">${sc}
+        <script>new QRCode(document.getElementById('qr'),{text:'${qrCode}',width:180,height:180});</script>
       </body></html>
     `);
     win.document.close();

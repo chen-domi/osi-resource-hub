@@ -63,7 +63,7 @@ function PostRequestModal({ onClose, onPosted }: { onClose: () => void; onPosted
       onPosted(rowToRequest(data));
     } else {
       // Dev login fallback — no real session
-      if (err) console.error('Request post failed:', err.message);
+      if (err) { console.error('Request post failed:', err.message); setError('Failed to post — saved locally.'); }
       onPosted({
         id: Date.now(),
         org: user?.currentOrg ?? '',
