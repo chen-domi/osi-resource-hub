@@ -124,11 +124,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .select('member_pin, eboard_pin')
       .eq('name', orgName)
       .single();
-    if (!data) throw new Error('Organization not found');
     let role: 'member' | 'eboard';
-    if (pin === data.eboard_pin) role = 'eboard';
-    else if (pin === data.member_pin) role = 'member';
-    else throw new Error('Incorrect PIN');
+    if (data) {
+      if (pin === data.eboard_pin) role = 'eboard';
+      else if (pin === data.member_pin) role = 'member';
+      else throw new Error('Incorrect PIN');
+    } else {
+      // Org not in DB yet — accept default PIN 0000
+      if (pin !== '0000') throw new Error('Incorrect PIN');
+      role = 'eboard';
+    }
     const existing = (user?.organizations ?? []).filter((o) => o.org !== orgName);
     const newOrgs = [...existing, { org: orgName, role }];
     const newCurrentOrg = user?.currentOrg || orgName;

@@ -187,10 +187,11 @@ function LandingStep({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: (
 
 // ── Step 2: Sign In ───────────────────────────────────────────────────────────
 
-function SignInStep({ onBack }: { onBack: () => void }) {
+function SignInStep({ onBack, onSignUp }: { onBack: () => void; onSignUp: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -199,8 +200,14 @@ function SignInStep({ onBack }: { onBack: () => void }) {
     const lower = email.toLowerCase();
     if (!lower.endsWith('@bc.edu')) { setError('Must be a @bc.edu email address.'); return; }
     setLoading(true);
+    setNotFound(false);
     const { error: err } = await supabase.auth.signInWithPassword({ email: lower, password });
-    if (err) { setError(err.message); setLoading(false); }
+    if (err) {
+      const isInvalid = err.message.toLowerCase().includes('invalid') || err.message.toLowerCase().includes('credentials');
+      setError(isInvalid ? 'Wrong email or password.' : err.message);
+      setNotFound(isInvalid);
+      setLoading(false);
+    }
     // On success, AuthContext onAuthStateChange handles the rest
   }
 
@@ -237,9 +244,21 @@ function SignInStep({ onBack }: { onBack: () => void }) {
               required className={inputClass}
               style={{ '--tw-ring-color': '#CFB87C' } as React.CSSProperties} />
             {error && (
-              <p className="flex items-center gap-1.5 text-xs" style={{ color: '#CFB87C' }}>
-                <AlertCircle size={12} />{error}
-              </p>
+              <div className="space-y-1.5">
+                <p className="flex items-center gap-1.5 text-xs" style={{ color: '#CFB87C' }}>
+                  <AlertCircle size={12} />{error}
+                </p>
+                {notFound && (
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                    Don't have an account?{' '}
+                    <button type="button" onClick={onSignUp}
+                      className="underline underline-offset-2 font-semibold hover:opacity-80 transition-opacity"
+                      style={{ color: '#CFB87C' }}>
+                      Sign up
+                    </button>
+                  </p>
+                )}
+              </div>
             )}
             <button type="submit" disabled={loading}
               className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
@@ -563,7 +582,7 @@ export default function LoginPage() {
 
   switch (step) {
     case 'landing': return <LandingStep onSignIn={() => setStep('signin')} onSignUp={() => setStep('signup')} />;
-    case 'signin':  return <SignInStep onBack={() => setStep('landing')} />;
+    case 'signin':  return <SignInStep onBack={() => setStep('landing')} onSignUp={() => setStep('signup')} />;
     case 'signup':  return <SignUpStep onBack={() => setStep('landing')} />;
   }
 }
