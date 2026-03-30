@@ -53,7 +53,7 @@ export default function Header() {
                     <select
                       value={user.currentOrg}
                       onChange={(e) => switchOrg(e.target.value)}
-                      className="appearance-none text-xs font-semibold pl-2.5 pr-6 py-1 rounded-full cursor-pointer focus:outline-none max-w-[160px]"
+                      className="appearance-none text-xs font-semibold pl-2.5 pr-6 py-1 rounded-full cursor-pointer focus:outline-none"
                       style={{ backgroundColor: '#CFB87C', color: '#8B0000' }}
                     >
                       {orgs.map((o) => (
@@ -64,7 +64,7 @@ export default function Header() {
                       style={{ color: '#8B0000' }} />
                   </div>
                 ) : (
-                  <span className="text-xs font-semibold px-2 py-1 rounded-full inline-block max-w-[160px] truncate"
+                  <span className="text-xs font-semibold px-2 py-1 rounded-full inline-block"
                     style={{ backgroundColor: '#CFB87C', color: '#8B0000' }}>
                     {user.currentOrg}
                   </span>
