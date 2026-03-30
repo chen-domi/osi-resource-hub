@@ -315,7 +315,7 @@ function MainApp() {
           <span className="hidden sm:block">&bull;</span>
           <span>300+ Student Organizations</span>
           <span className="hidden sm:block">&bull;</span>
-          <span>Spring 2025</span>
+          <span>Spring 2026</span>
         </div>
       </main>
 

@@ -32,7 +32,7 @@ export default function Header() {
             </div>
             <div className="flex items-center gap-1 mt-1.5 ml-14 text-xs text-red-300">
               <MapPin size={11} />
-              <span>Carney Hall, Suite 147 &bull; Powered by MyBC</span>
+              <span>Boston College Student Organizations</span>
             </div>
           </div>
 
