@@ -10,7 +10,7 @@ A shared inventory and resource-sharing platform for Boston College student orga
 - **Sharing marketplace** — List items other orgs can borrow and request items you need
 - **QR check-in/out** — Scan QR codes to mark items as checked out or returned, state persists across sessions
 - **Wanted board** — Post items your org is looking for; other orgs can respond
-- **Role-based access** — Members can view; eboard members can add/edit/delete items; OSI admins see everything
+- **Role-based access** — eboard members can add/edit/delete items; OSI admins see everything
 
 ---
 
@@ -27,117 +27,15 @@ A shared inventory and resource-sharing platform for Boston College student orga
 
 ---
 
-## Getting Started
+<img width="1781" height="1074" alt="image" src="https://github.com/user-attachments/assets/770b4b08-c241-4fb3-a2f6-177c28c85a25" />
+<img width="1778" height="1072" alt="image" src="https://github.com/user-attachments/assets/22d23e80-e7cc-4e35-be3c-934c9baceb57" />
+<img width="1781" height="1080" alt="image" src="https://github.com/user-attachments/assets/7d6d2c3f-0f9d-43e6-8989-43655493ffa4" />
+<img width="1778" height="1073" alt="image" src="https://github.com/user-attachments/assets/044a2c8e-c0b6-4b6d-a79f-4377354ea1dc" />
+<img width="1784" height="1081" alt="image" src="https://github.com/user-attachments/assets/03db9e03-43c0-41ec-bbd4-6e2e888bc650" />
+<img width="1782" height="1080" alt="image" src="https://github.com/user-attachments/assets/10aa4467-5290-4770-9bb1-1d419f7abb65" />
+<img width="1779" height="1077" alt="image" src="https://github.com/user-attachments/assets/56265748-704e-4f00-900d-dfbb310d131d" />
+<img width="1779" height="1067" alt="image" src="https://github.com/user-attachments/assets/b1a4647c-3e1e-48a4-a79b-8739d9a0589b" />
 
-### 1. Clone the repo
 
-```bash
-git clone https://github.com/chen-domi/osi-resource-hub.git
-cd osi-resource-hub
-npm install
-```
 
-### 2. Set up environment variables
 
-Copy `.env.example` to `.env` and fill in your Supabase credentials:
-
-```bash
-cp .env.example .env
-```
-
-```
-REACT_APP_SUPABASE_URL=https://your-project-ref.supabase.co
-REACT_APP_SUPABASE_ANON_KEY=your-anon-key-here
-```
-
-Find these in your Supabase project under **Settings → API**.
-
-### 3. Run the database migrations
-
-In the Supabase SQL Editor, run each migration file in order:
-
-```
-supabase/migrations/001_profiles.sql
-supabase/migrations/002_inventory.sql
-supabase/migrations/003_item_requests.sql
-supabase/migrations/004_checkouts_and_orgs.sql
-```
-
-### 4. Configure Supabase Auth
-
-In **Authentication → URL Configuration**:
-- Set **Site URL** to `http://localhost:3000` (or your Vercel URL for production)
-- Add your URL to **Redirect URLs**
-
-Enable **Google** as an OAuth provider under **Authentication → Providers**.
-
-### 5. Start the app
-
-```bash
-npm start
-```
-
----
-
-## Project Structure
-
-```
-src/
-  App.tsx                  # Root app, tab management, Supabase data fetching
-  components/
-    Header.tsx             # Top nav with org switcher and sign out
-    ImpactDashboard.tsx    # Stats cards, quick actions, org manager
-    InventoryTable.tsx     # Item table with QR popover, status indicators
-    AddItemModal.tsx       # Add / edit item form
-    SharingMarketplace.tsx # Browse shared items from all orgs
-    RequestsBoard.tsx      # Wanted items board
-    QRScannerModal.tsx     # Camera QR scanner
-    LoginPage.tsx          # Sign in / sign up / profile setup
-    Combobox.tsx           # Reusable searchable dropdown
-  context/
-    AuthContext.tsx        # Auth state, joinOrg, leaveOrg, switchOrg
-  data/
-    clubs.ts               # Full list of BC student organizations
-    inventory.ts           # Demo QR scan data
-  lib/
-    supabase.ts            # Supabase client
-  types/
-    index.ts               # Shared TypeScript types
-
-supabase/
-  migrations/              # SQL migrations (run in order)
-```
-
----
-
-## Roles & Permissions
-
-| Role | Can do |
-|---|---|
-| **Member** | View all inventory, browse marketplace, post wanted requests |
-| **Eboard** | All of the above + add/edit/delete items for their org, toggle marketplace listing |
-| **OSI Admin** | Full access across all organizations |
-
-Users sign up with a BC email (`@bc.edu`) and join organizations using a PIN. The default PIN for all organizations is `0000`.
-
----
-
-## Deployment
-
-The app is deployed on Vercel. Any push to `main` triggers an automatic redeploy.
-
-Set the following environment variables in Vercel **Settings → Environment Variables**:
-
-```
-REACT_APP_SUPABASE_URL
-REACT_APP_SUPABASE_ANON_KEY
-GENERATE_SOURCEMAP=false
-```
-
----
-
-## Development Notes
-
-- A **dev login** button appears in development mode (`localhost`) to bypass OAuth — useful for testing without a Supabase session
-- Supabase Row Level Security (RLS) is enforced at the database level; dev login bypasses this and falls back to local state for mutations
-- QR codes are auto-generated from org abbreviation + item name + ID (e.g. `BC-UGBC-TABLE-001`)
