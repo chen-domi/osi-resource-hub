@@ -3,18 +3,10 @@ import { Plus, X, AlertCircle, Inbox, ChevronRight, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase';
 import { categoryColors } from '../data/inventory';
 import { useAuth } from '../context/AuthContext';
+import { ItemRequest } from '../types';
 import Combobox from './Combobox';
 
 const CATEGORIES = Object.keys(categoryColors);
-
-interface ItemRequest {
-  id: number;
-  org: string;
-  itemName: string;
-  category: string | null;
-  notes: string | null;
-  createdAt: string;
-}
 
 function rowToRequest(row: any): ItemRequest {
   return {
@@ -23,6 +15,8 @@ function rowToRequest(row: any): ItemRequest {
     itemName:  row.item_name,
     category:  row.category,
     notes:     row.notes,
+    status:    row.status ?? 'pending',
+    createdBy: row.created_by,
     createdAt: row.created_at,
   };
 }

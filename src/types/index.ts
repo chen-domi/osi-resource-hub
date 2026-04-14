@@ -8,13 +8,8 @@ export interface InventoryItem {
   quantity: number;
   lastUsed: string;
   shared: boolean;
+  checkedOut?: boolean;
   createdAt?: string;
-  checkedOutTo?: {
-    name: string;
-    email: string;
-    date: string;
-    expectedReturn: string;
-  };
 }
 
 export interface AuthUser {
@@ -27,6 +22,17 @@ export interface AuthUser {
   }>;
   currentOrg: string;
   isOSIAdmin: boolean;
+}
+
+export interface ItemRequest {
+  id: number;
+  org: string;
+  itemName: string;
+  category: string | null;
+  notes: string | null;
+  status?: 'pending' | 'fulfilled';
+  createdBy?: string;
+  createdAt: string;
 }
 
 export interface ScanResult {

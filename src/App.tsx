@@ -16,16 +16,17 @@ import { InventoryItem, ScanResult } from './types';
 
 function rowToItem(row: any): InventoryItem {
   return {
-    id:        row.id,
-    qrCode:    row.qr_code,
-    name:      row.name,
-    category:  row.category,
-    org:       row.org,
-    location:  row.location,
-    quantity:  row.quantity,
-    lastUsed:  row.last_used,
-    shared:    row.shared,
-    createdAt: row.created_at,
+    id:         row.id,
+    qrCode:     row.qr_code,
+    name:       row.name,
+    category:   row.category,
+    org:        row.org,
+    location:   row.location,
+    quantity:   row.quantity,
+    lastUsed:   row.last_used,
+    shared:     row.shared,
+    checkedOut: row.checked_out,
+    createdAt:  row.created_at,
   };
 }
 
@@ -40,13 +41,17 @@ export default function App() {
 }
 
 function AppInner() {
-  const { user, loading } = useAuth();
+  const { user, loading, needsOrgSelection } = useAuth();
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#6B0000' }}>
       <div className="w-10 h-10 rounded-full border-4 border-white/20 border-t-white animate-spin" />
     </div>
   );
-  if (!user) return <LoginPage />;
+
+  // Not logged in, or needs to pick org + enter PIN
+  if (!user || needsOrgSelection) return <LoginPage />;
+
   return <MainApp />;
 }
 
@@ -66,8 +71,9 @@ function MainApp() {
   const [requestCount, setRequestCount] = useState(0);
 
   const isAdmin = !!user?.isOSIAdmin;
-  const userRole = user?.organizations[0]?.role ?? 'member';
-  const canAdd = isAdmin || userRole === 'eboard';
+  // Role is stored in localStorage after PIN entry — scoped to the current session's org
+  const currentRole = localStorage.getItem('currentRole') as 'eboard' | null;
+  const canAdd = isAdmin || currentRole === 'eboard';
 
   // Auto-close scanner 2s after scan
   useEffect(() => {
@@ -119,7 +125,6 @@ function MainApp() {
       if (data) {
         setItems((prev) => [...prev, rowToItem(data)]);
       } else {
-        // No real Supabase session (e.g. dev login) — fall back to local state
         if (error) console.error('Inventory insert failed:', error.message);
         setItems((prev) => [...prev, saved]);
       }
@@ -175,12 +180,16 @@ function MainApp() {
   const clubItems = isAdmin ? items : items.filter((i) => i.org === user?.currentOrg);
   const globalItems = items;
 
-  const tabs: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
-    { key: 'club-inventory',   label: 'Your Inventory',   icon: <Package size={15} />,       count: clubItems.length },
-    { key: 'global-inventory', label: 'Global Inventory', icon: <Globe size={15} />,          count: globalItems.length },
-    { key: 'marketplace',      label: 'Marketplace',      icon: <ArrowLeftRight size={15} />, count: items.filter((i) => i.shared).length },
-    { key: 'wanted',           label: 'Wanted',           icon: <Inbox size={15} />,          count: requestCount },
+  type TabDef = { key: Tab; label: string; icon: React.ReactNode; count?: number; eboardOnly?: boolean };
+  const tabs: TabDef[] = [
+    { key: 'club-inventory',   label: 'Your Inventory',   icon: <Package size={15} />,         count: clubItems.length },
+    { key: 'global-inventory', label: 'Global Inventory', icon: <Globe size={15} />,            count: globalItems.length },
+    { key: 'marketplace',      label: 'Marketplace',      icon: <ArrowLeftRight size={15} />,   count: items.filter((i) => i.shared).length },
+    { key: 'wanted',           label: 'Wanted',           icon: <Inbox size={15} />,            count: requestCount },
   ];
+
+  // Only show Settings tab for eboard / OSI admin
+  const visibleTabs = tabs.filter((t) => !t.eboardOnly || canAdd);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#f8f4ee' }}>
@@ -197,7 +206,7 @@ function MainApp() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Tab bar */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {tabs.map((tab) => (
+            {visibleTabs.map((tab) => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                 className="flex items-center gap-2 px-6 py-4 text-sm font-semibold transition-colors border-b-2 -mb-px whitespace-nowrap flex-shrink-0"
                 style={activeTab === tab.key
@@ -230,7 +239,6 @@ function MainApp() {
               </div>
             )}
 
-            {/* Category + Org filters — global inventory and marketplace */}
             {activeTab !== 'club-inventory' && (
               <>
                 <Combobox

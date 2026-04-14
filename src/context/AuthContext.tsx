@@ -3,21 +3,18 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { AuthUser } from '../types';
 
-export interface ProfileSetupData {
-  organizations: Array<{ org: string; role: 'eboard' }>;
-  currentOrg: string;
-  isOSIAdmin: boolean;
-}
-
-interface AuthContextValue {
+export interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
-  needsProfileSetup: boolean;
-  completeProfileSetup: (data: ProfileSetupData) => Promise<void>;
+  needsOrgSelection: boolean;
+  authError: string | null;
+  selectOrg: (orgName: string, role: 'eboard') => void;
   logout: () => Promise<void>;
   switchOrg: (org: string) => void;
-  joinOrg: (orgName: string, pin: string) => Promise<'member' | 'eboard'>;
+  joinOrg: (orgName: string, pin: string) => Promise<'eboard'>;
+  /** @deprecated No-op in session-based auth model. Use switchOrg instead. */
   leaveOrg: (orgName: string) => Promise<void>;
+  clearAuthError: () => void;
   devLogin: () => void;
 }
 
@@ -34,9 +31,9 @@ async function fetchProfile(su: SupabaseUser): Promise<AuthUser | null> {
     id: su.id,
     name: data.name,
     email: data.email,
-    organizations: data.organizations,
-    currentOrg: data.current_org,
-    isOSIAdmin: data.is_osi_admin,
+    organizations: data.organizations ?? [],
+    currentOrg: data.current_org ?? '',
+    isOSIAdmin: data.is_osi_admin ?? false,
   };
 }
 
@@ -50,18 +47,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
+  const [needsOrgSelection, setNeedsOrgSelection] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   async function handleSupabaseUser(su: SupabaseUser) {
     setSupabaseUser(su);
-    const profile = await fetchProfile(su);
-    if (profile) {
-      setUser(profile);
-      setNeedsProfileSetup(false);
-    } else {
+
+    // Validate @bc.edu domain — set error state BEFORE signing out to avoid race
+    if (!su.email?.toLowerCase().endsWith('@bc.edu')) {
+      setAuthError('Only @bc.edu accounts are allowed. Please use your Boston College email.');
       setUser(null);
-      setNeedsProfileSetup(true);
+      setSupabaseUser(null);
+      setLoading(false);
+      supabase.auth.signOut(); // fire-and-forget, no await
+      return;
     }
+
+    let profile = await fetchProfile(su);
+
+    if (!profile) {
+      // Auto-create a minimal profile for new users (no PIN required at this step)
+      const name = deriveName(su);
+      const { error } = await supabase.from('profiles').insert({
+        id: su.id,
+        name,
+        email: su.email!,
+        organizations: [],
+        current_org: '',
+        is_osi_admin: false,
+      });
+      if (!error) {
+        profile = {
+          id: su.id,
+          name,
+          email: su.email!,
+          organizations: [],
+          currentOrg: '',
+          isOSIAdmin: false,
+        };
+      }
+    }
+
+    if (!profile) {
+      // Profile creation failed — sign out
+      await supabase.auth.signOut();
+      setAuthError('Failed to create your profile. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    setUser(profile);
+
+    // OSI admins skip org selection entirely
+    if (profile.isOSIAdmin) {
+      setNeedsOrgSelection(false);
+      setLoading(false);
+      return;
+    }
+
+    // Check if this browser session already has an org selected
+    const storedOrg = localStorage.getItem('currentOrg');
+    const storedRole = localStorage.getItem('currentRole') as 'eboard' | null;
+    if (storedOrg && storedRole) {
+      setUser((prev) => prev ? { ...prev, currentOrg: storedOrg } : prev);
+      setNeedsOrgSelection(false);
+    } else {
+      setNeedsOrgSelection(true);
+    }
+
     setLoading(false);
   }
 
@@ -80,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUser(null);
         setSupabaseUser(null);
-        setNeedsProfileSetup(false);
+        setNeedsOrgSelection(false);
         setLoading(false);
       }
     });
@@ -88,90 +141,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const completeProfileSetup = useCallback(async (data: ProfileSetupData) => {
-    if (!supabaseUser) throw new Error('No authenticated user');
-    const name = deriveName(supabaseUser);
-    const { error } = await supabase.from('profiles').insert({
-      id: supabaseUser.id,
-      name,
-      email: supabaseUser.email!,
-      organizations: data.organizations,
-      current_org: data.currentOrg,
-      is_osi_admin: data.isOSIAdmin,
-    });
-    if (error) throw error;
-    setUser({ name, email: supabaseUser.email!, organizations: data.organizations, currentOrg: data.currentOrg, isOSIAdmin: data.isOSIAdmin });
-    setNeedsProfileSetup(false);
+  // Called after successful PIN entry — stores org in localStorage for this session
+  const selectOrg = useCallback((orgName: string, role: 'eboard') => {
+    localStorage.setItem('currentOrg', orgName);
+    localStorage.setItem('currentRole', role);
+    if (supabaseUser) {
+      supabase.from('profiles').update({ current_org: orgName }).eq('id', supabaseUser.id);
+    }
+    setUser((prev) => prev ? { ...prev, currentOrg: orgName } : prev);
+    setNeedsOrgSelection(false);
   }, [supabaseUser]);
 
   const logout = useCallback(async () => {
+    localStorage.removeItem('currentOrg');
+    localStorage.removeItem('currentRole');
     await supabase.auth.signOut();
     setUser(null);
     setSupabaseUser(null);
-    setNeedsProfileSetup(false);
+    setNeedsOrgSelection(false);
+    setAuthError(null);
   }, []);
 
   const switchOrg = useCallback((org: string) => {
+    if (!org) return;
+    localStorage.setItem('currentOrg', org);
+    localStorage.setItem('currentRole', 'eboard');
     if (supabaseUser) {
       supabase.from('profiles').update({ current_org: org }).eq('id', supabaseUser.id);
     }
     setUser((prev) => prev ? { ...prev, currentOrg: org } : prev);
   }, [supabaseUser]);
 
-  const joinOrg = useCallback(async (orgName: string, pin: string): Promise<'member' | 'eboard'> => {
+  const joinOrg = useCallback(async (orgName: string, pin: string): Promise<'eboard'> => {
     const { data } = await supabase
       .from('organizations')
-      .select('member_pin, eboard_pin')
+      .select('eboard_pin')
       .eq('name', orgName)
       .single();
-    let role: 'member' | 'eboard';
-    if (data) {
-      if (pin === data.eboard_pin) role = 'eboard';
-      else if (pin === data.member_pin) role = 'member';
-      else throw new Error('Incorrect PIN');
-    } else {
-      // Org not in DB yet — accept default PIN 0000
-      if (pin !== '0000') throw new Error('Incorrect PIN');
-      role = 'eboard';
-    }
-    const existing = (user?.organizations ?? []).filter((o) => o.org !== orgName);
-    const newOrgs = [...existing, { org: orgName, role }];
-    const newCurrentOrg = user?.currentOrg || orgName;
-    if (supabaseUser) {
-      await supabase.from('profiles').update({ organizations: newOrgs, current_org: newCurrentOrg }).eq('id', supabaseUser.id);
-    }
-    setUser((prev) => prev ? { ...prev, organizations: newOrgs, currentOrg: newCurrentOrg } : prev);
-    return role;
-  }, [user, supabaseUser]);
 
-  const leaveOrg = useCallback(async (orgName: string) => {
-    const newOrgs = (user?.organizations ?? []).filter((o) => o.org !== orgName);
-    const newCurrentOrg = user?.currentOrg === orgName ? (newOrgs[0]?.org ?? '') : (user?.currentOrg ?? '');
-    if (supabaseUser) {
-      await supabase.from('profiles').update({ organizations: newOrgs, current_org: newCurrentOrg }).eq('id', supabaseUser.id);
-    }
-    setUser((prev) => prev ? { ...prev, organizations: newOrgs, currentOrg: newCurrentOrg } : prev);
-  }, [user, supabaseUser]);
+    if (!data) throw new Error('Organization not found. Please try again.');
+    if (pin !== data.eboard_pin) throw new Error('Incorrect PIN. Please try again.');
+    return 'eboard';
+  }, []);
+
+  // No-op: org membership is now session-scoped via localStorage, not stored in profile
+  const leaveOrg = useCallback(async (_orgName: string) => {
+    // In the current auth model, "leaving" an org means switching to a different one.
+    // Use switchOrg() for that. This stub exists for backward compatibility.
+  }, []);
+
+  const clearAuthError = useCallback(() => setAuthError(null), []);
 
   const devLogin = useCallback(() => {
+    localStorage.setItem('currentOrg', 'UGBC');
+    localStorage.setItem('currentRole', 'eboard');
     setUser({
       id: 'dev-user',
       name: 'Test User',
       email: 'testuser@bc.edu',
-      organizations: [
-        { org: 'UGBC', role: 'eboard' },
-        { org: 'BC Debate Society', role: 'eboard' },
-        { org: 'BC Surf Club', role: 'eboard' },
-        { org: 'Finance Club', role: 'eboard' },
-      ],
+      organizations: [{ org: 'UGBC', role: 'eboard' }],
       currentOrg: 'UGBC',
       isOSIAdmin: false,
     });
-    setNeedsProfileSetup(false);
+    setNeedsOrgSelection(false);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, needsProfileSetup, completeProfileSetup, logout, switchOrg, joinOrg, leaveOrg, devLogin }}>
+    <AuthContext.Provider value={{
+      user, loading, needsOrgSelection, authError,
+      selectOrg, logout, switchOrg, joinOrg, leaveOrg, clearAuthError, devLogin,
+    }}>
       {children}
     </AuthContext.Provider>
   );

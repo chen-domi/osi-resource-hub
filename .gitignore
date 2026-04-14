@@ -22,3 +22,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# E-board PIN reference — keep private
+eboard-pins.csv
