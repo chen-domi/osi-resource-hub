@@ -105,12 +105,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Skip PIN if user has previously verified any org (stored in DB)
-    if (profile.organizations.length > 0) {
-      // Prefer localStorage (reflects most recent switch, set synchronously),
-      // fall back to DB value in case localStorage was cleared by logout
+    // Skip PIN if user has previously verified an org (current_org set in DB)
+    if (profile.currentOrg) {
+      // Prefer localStorage (reflects most recent switch), fall back to DB
       const storedOrg = localStorage.getItem('currentOrg');
-      const restoredOrg = storedOrg || profile.currentOrg || profile.organizations[0].org;
+      const restoredOrg = storedOrg || profile.currentOrg;
       localStorage.setItem('currentOrg', restoredOrg);
       localStorage.setItem('currentRole', 'eboard');
       setUser((prev) => prev ? { ...prev, currentOrg: restoredOrg } : prev);
@@ -151,21 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('currentRole', role);
     if (supabaseUser) {
       supabase.from('profiles').update({ current_org: orgName }).eq('id', supabaseUser.id);
-      // Persist verified org to DB so future logins skip PIN
-      setUser((prev) => {
-        if (!prev) return prev;
-        const already = prev.organizations.some((o) => o.org === orgName);
-        const updatedOrgs = already
-          ? prev.organizations
-          : [...prev.organizations, { org: orgName, role: 'eboard' as const }];
-        if (!already) {
-          supabase.from('profiles').update({ organizations: updatedOrgs }).eq('id', supabaseUser.id);
-        }
-        return { ...prev, currentOrg: orgName, organizations: updatedOrgs };
-      });
-    } else {
-      setUser((prev) => prev ? { ...prev, currentOrg: orgName } : prev);
     }
+    setUser((prev) => prev ? { ...prev, currentOrg: orgName } : prev);
     setNeedsOrgSelection(false);
   }, [supabaseUser]);
 
