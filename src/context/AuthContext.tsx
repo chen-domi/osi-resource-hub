@@ -105,11 +105,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Check if this browser session already has an org selected
-    const storedOrg = localStorage.getItem('currentOrg');
-    const storedRole = localStorage.getItem('currentRole') as 'eboard' | null;
-    if (storedOrg && storedRole) {
-      setUser((prev) => prev ? { ...prev, currentOrg: storedOrg } : prev);
+    // Skip PIN if user has previously verified any org (stored in DB)
+    if (profile.organizations.length > 0) {
+      // Prefer localStorage (reflects most recent switch, set synchronously),
+      // fall back to DB value in case localStorage was cleared by logout
+      const storedOrg = localStorage.getItem('currentOrg');
+      const restoredOrg = storedOrg || profile.currentOrg || profile.organizations[0].org;
+      localStorage.setItem('currentOrg', restoredOrg);
+      localStorage.setItem('currentRole', 'eboard');
+      setUser((prev) => prev ? { ...prev, currentOrg: restoredOrg } : prev);
       setNeedsOrgSelection(false);
     } else {
       setNeedsOrgSelection(true);
@@ -141,14 +145,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Called after successful PIN entry — stores org in localStorage for this session
+  // Called after successful PIN entry — stores org in localStorage and persists to DB
   const selectOrg = useCallback((orgName: string, role: 'eboard') => {
     localStorage.setItem('currentOrg', orgName);
     localStorage.setItem('currentRole', role);
     if (supabaseUser) {
       supabase.from('profiles').update({ current_org: orgName }).eq('id', supabaseUser.id);
+      // Persist verified org to DB so future logins skip PIN
+      setUser((prev) => {
+        if (!prev) return prev;
+        const already = prev.organizations.some((o) => o.org === orgName);
+        const updatedOrgs = already
+          ? prev.organizations
+          : [...prev.organizations, { org: orgName, role: 'eboard' as const }];
+        if (!already) {
+          supabase.from('profiles').update({ organizations: updatedOrgs }).eq('id', supabaseUser.id);
+        }
+        return { ...prev, currentOrg: orgName, organizations: updatedOrgs };
+      });
+    } else {
+      setUser((prev) => prev ? { ...prev, currentOrg: orgName } : prev);
     }
-    setUser((prev) => prev ? { ...prev, currentOrg: orgName } : prev);
     setNeedsOrgSelection(false);
   }, [supabaseUser]);
 

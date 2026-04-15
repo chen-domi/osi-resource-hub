@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox } from 'lucide-react';
+import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox, ShieldCheck } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { supabase } from './lib/supabase';
@@ -182,7 +182,7 @@ function MainApp() {
 
   type TabDef = { key: Tab; label: string; icon: React.ReactNode; count?: number; eboardOnly?: boolean };
   const tabs: TabDef[] = [
-    { key: 'club-inventory',   label: 'Your Inventory',   icon: <Package size={15} />,         count: clubItems.length },
+    { key: 'club-inventory',   label: isAdmin ? 'All Organizations' : 'Your Inventory', icon: <Package size={15} />, count: clubItems.length },
     { key: 'global-inventory', label: 'Global Inventory', icon: <Globe size={15} />,            count: globalItems.length },
     { key: 'marketplace',      label: 'Marketplace',      icon: <ArrowLeftRight size={15} />,   count: items.filter((i) => i.shared).length },
     { key: 'wanted',           label: 'Wanted',           icon: <Inbox size={15} />,            count: requestCount },
@@ -194,6 +194,14 @@ function MainApp() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#f8f4ee' }}>
       <Header />
+
+      {isAdmin && (
+        <div className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold"
+          style={{ backgroundColor: '#CFB87C', color: '#1a2744' }}>
+          <ShieldCheck size={13} />
+          OSI Admin — viewing all organizations
+        </div>
+      )}
 
       <main className="max-w-6xl mx-auto px-4 py-8">
         <ImpactDashboard

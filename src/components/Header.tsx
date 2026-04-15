@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, MapPin, LogOut, ChevronDown } from 'lucide-react';
+import { Package, MapPin, LogOut, ChevronDown, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Header() {
@@ -9,7 +9,9 @@ export default function Header() {
   const orgs = user?.organizations ?? [];
 
   return (
-    <header style={{ background: 'linear-gradient(135deg, #8B0000 0%, #5a0000 100%)' }}>
+    <header style={{ background: isAdmin
+      ? 'linear-gradient(135deg, #1a2744 0%, #0f172a 100%)'
+      : 'linear-gradient(135deg, #8B0000 0%, #5a0000 100%)' }}>
       <div className="max-w-6xl mx-auto px-4 py-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           {/* Title block */}
@@ -22,8 +24,6 @@ export default function Header() {
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-bold text-white tracking-tight">The Commons</h1>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                    style={{ backgroundColor: '#CFB87C', color: '#8B0000' }}>BETA</span>
                 </div>
                 <p className="text-sm text-red-200 mt-0.5">
                   Smart Inventory &amp; Sharing Marketplace for BC Student Organizations
