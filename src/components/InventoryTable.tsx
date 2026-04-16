@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Package, QrCode, MapPin, Pencil, Trash2, Lock, Printer } from 'lucide-react';
 import { InventoryItem } from '../types';
@@ -28,6 +28,7 @@ export default function InventoryTable({
   items, checkedOutItems, viewMode, onScanClick, onEdit, onDelete, onToggleShare,
 }: InventoryTableProps) {
   const { user } = useAuth();
+  const currentRole = localStorage.getItem('currentRole') as 'eboard' | null;
 
   if (items.length === 0) {
     return (
@@ -57,7 +58,7 @@ export default function InventoryTable({
           {items.map((item) => {
             const canEdit =
               user?.isOSIAdmin ||
-              (user?.organizations.find((o) => o.org === item.org)?.role === 'eboard');
+              (item.org === user?.currentOrg && currentRole === 'eboard');
             const canToggle = canEdit;
             return (
               <InventoryRow
@@ -150,7 +151,7 @@ function QRPopover({ qrCode }: { qrCode: string }) {
   );
 }
 
-function InventoryRow({ item, isCheckedOut, viewMode, canEdit, canToggle, onScanClick, onEdit, onDelete, onToggleShare }: RowProps) {
+function InventoryRow({ item, isCheckedOut, viewMode, canEdit, canToggle, onScanClick: _onScanClick, onEdit, onDelete, onToggleShare }: RowProps) {
   return (
     <tr className={`transition-colors ${isCheckedOut ? 'bg-gray-50 hover:bg-gray-100' : 'bg-white hover:bg-amber-50'}`}>
       {/* QR Code */}
