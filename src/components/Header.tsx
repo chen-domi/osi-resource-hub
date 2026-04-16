@@ -1,5 +1,4 @@
-import React from 'react';
-import { Package, MapPin, LogOut, ChevronDown, ShieldCheck } from 'lucide-react';
+import { Package, MapPin, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Header() {
