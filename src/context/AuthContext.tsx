@@ -105,11 +105,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Skip PIN if user has previously verified an org (current_org set in DB)
-    if (profile.currentOrg) {
-      // Prefer localStorage (reflects most recent switch), fall back to DB
-      const storedOrg = localStorage.getItem('currentOrg');
-      const restoredOrg = storedOrg || profile.currentOrg;
+    // Skip PIN if org is known — check localStorage first (synchronous, always
+    // reflects the current session), fall back to DB value (survives logout)
+    const storedOrg = localStorage.getItem('currentOrg');
+    const restoredOrg = storedOrg || profile.currentOrg;
+    if (restoredOrg) {
       localStorage.setItem('currentOrg', restoredOrg);
       localStorage.setItem('currentRole', 'eboard');
       setUser((prev) => prev ? { ...prev, currentOrg: restoredOrg } : prev);
