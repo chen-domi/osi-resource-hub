@@ -13,7 +13,7 @@ interface ImpactDashboardProps {
 }
 
 function OrgManagerModal({ onClose }: { onClose: () => void }) {
-  const { user, joinOrg, leaveOrg, switchOrg } = useAuth();
+  const { user, joinOrg, selectOrg, leaveOrg, switchOrg } = useAuth();
   const [orgName, setOrgName] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -25,10 +25,12 @@ function OrgManagerModal({ onClose }: { onClose: () => void }) {
 
   async function handleJoin(e: React.FormEvent) {
     e.preventDefault();
+    if (pin.length !== 4) { setError('PIN must be 4 digits.'); return; }
     setError('');
     setLoading(true);
     try {
-      await joinOrg(orgName.trim(), pin.trim());
+      await joinOrg(orgName.trim(), pin);
+      selectOrg(orgName.trim(), 'eboard');
       setOrgName('');
       setPin('');
     } catch (err: any) {
@@ -102,15 +104,23 @@ function OrgManagerModal({ onClose }: { onClose: () => void }) {
                 placeholder="Search organizations…"
                 style={ring}
               />
-              <input type="password" value={pin} onChange={(e) => setPin(e.target.value)}
-                placeholder="PIN" required className={inputClass} style={ring} />
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="• • • •"
+                value={pin}
+                onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setError(''); }}
+                className={`${inputClass} tracking-widest text-center font-bold text-base placeholder-gray-300`}
+                style={ring}
+              />
               {error && (
                 <div className="flex items-center gap-1.5 text-xs text-red-600">
                   <AlertCircle size={12} /> {error}
                 </div>
               )}
-              <button type="submit" disabled={loading}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+              <button type="submit" disabled={loading || !orgName.trim() || pin.length !== 4}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-40"
                 style={{ backgroundColor: '#8B0000' }}>
                 {loading ? 'Joining…' : 'Join'}
               </button>
