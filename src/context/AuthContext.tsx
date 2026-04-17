@@ -106,14 +106,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Skip PIN if org is known — check localStorage first (synchronous, always
-    // reflects the current session), fall back to DB value (survives logout)
+    // Restore org + orgs list — localStorage is primary (set synchronously on PIN entry,
+    // cleared only on logout), DB values are fallback (survive logout across devices).
     const storedOrg = localStorage.getItem('currentOrg');
     const restoredOrg = storedOrg || profile.currentOrg;
+
+    let storedOrgs: AuthUser['organizations'] = [];
+    try {
+      const raw = localStorage.getItem('organizations');
+      if (raw) storedOrgs = JSON.parse(raw);
+    } catch {}
+    const restoredOrgs = storedOrgs.length > 0 ? storedOrgs : profile.organizations;
+
     if (restoredOrg) {
+      // Ensure the active org is always in the list (guards against partial state)
+      const inList = restoredOrgs.some((o) => o.org === restoredOrg);
+      const finalOrgs = inList
+        ? restoredOrgs
+        : [...restoredOrgs, { org: restoredOrg, role: 'eboard' as const }];
+
       localStorage.setItem('currentOrg', restoredOrg);
       localStorage.setItem('currentRole', 'eboard');
-      setUser((prev) => prev ? { ...prev, currentOrg: restoredOrg } : prev);
+      localStorage.setItem('organizations', JSON.stringify(finalOrgs));
+      setUser((prev) => prev ? { ...prev, currentOrg: restoredOrg, organizations: finalOrgs } : prev);
       setNeedsOrgSelection(false);
     } else {
       setNeedsOrgSelection(true);
@@ -160,6 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ? currentOrgs
       : [...currentOrgs, { org: orgName, role: 'eboard' as const }];
 
+    localStorage.setItem('organizations', JSON.stringify(updatedOrgs));
     if (supabaseUser) {
       supabase.from('profiles')
         .update({ current_org: orgName, organizations: updatedOrgs })
@@ -172,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     localStorage.removeItem('currentOrg');
     localStorage.removeItem('currentRole');
+    localStorage.removeItem('organizations');
     await supabase.auth.signOut();
     setUser(null);
     setSupabaseUser(null);
