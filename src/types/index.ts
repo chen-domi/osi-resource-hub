@@ -10,6 +10,10 @@ export interface InventoryItem {
   shared: boolean;
   checkedOut?: boolean;
   createdAt?: string;
+  borrowCount?: number;
+  checkoutPurpose?: string;
+  checkoutDueDate?: string;
+  checkedOutBy?: string;
 }
 
 export interface AuthUser {

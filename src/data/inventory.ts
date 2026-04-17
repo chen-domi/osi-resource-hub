@@ -80,6 +80,18 @@ export const inventoryItems: InventoryItem[] = [
   },
 ];
 
+export const CATEGORY_CO2_KG: Record<string, number> = {
+  'AV Equipment':   8,
+  'Furniture':      5,
+  'Outdoor':        4,
+  'Safety':         3,
+  'Décor':          2,
+  'Signage':        1.5,
+  'Sustainability': 1,
+};
+
+export const DEFAULT_CO2 = 2;
+
 export const categoryColors: Record<string, string> = {
   Furniture: 'bg-blue-100 text-blue-700',
   'AV Equipment': 'bg-purple-100 text-purple-700',

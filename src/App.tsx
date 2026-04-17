@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox, ShieldCheck } from 'lucide-react';
+import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox, ShieldCheck, Trophy } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { supabase } from './lib/supabase';
@@ -12,25 +12,31 @@ import RequestsBoard from './components/RequestsBoard';
 import Combobox from './components/Combobox';
 import LoginPage from './components/LoginPage';
 import AddItemModal from './components/AddItemModal';
+import CheckoutDetailsModal from './components/CheckoutDetailsModal';
+import Leaderboard from './components/Leaderboard';
 import { InventoryItem, ScanResult } from './types';
 
 function rowToItem(row: any): InventoryItem {
   return {
-    id:         row.id,
-    qrCode:     row.qr_code,
-    name:       row.name,
-    category:   row.category,
-    org:        row.org,
-    location:   row.location,
-    quantity:   row.quantity,
-    lastUsed:   row.last_used,
-    shared:     row.shared,
-    checkedOut: row.checked_out,
-    createdAt:  row.created_at,
+    id:              row.id,
+    qrCode:          row.qr_code,
+    name:            row.name,
+    category:        row.category,
+    org:             row.org,
+    location:        row.location,
+    quantity:        row.quantity,
+    lastUsed:        row.last_used,
+    shared:          row.shared,
+    checkedOut:      row.checked_out,
+    createdAt:       row.created_at,
+    borrowCount:     row.borrow_count ?? 0,
+    checkoutPurpose: row.checkout_purpose ?? undefined,
+    checkoutDueDate: row.checkout_due_date ?? undefined,
+    checkedOutBy:    row.checked_out_by ?? undefined,
   };
 }
 
-type Tab = 'club-inventory' | 'global-inventory' | 'marketplace' | 'wanted';
+type Tab = 'club-inventory' | 'global-inventory' | 'marketplace' | 'wanted' | 'leaderboard';
 
 export default function App() {
   return (
@@ -66,6 +72,7 @@ function MainApp() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [showAddItem, setShowAddItem] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [pendingCheckoutQR, setPendingCheckoutQR] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterOrg, setFilterOrg] = useState('');
   const [requestCount, setRequestCount] = useState(0);
@@ -147,19 +154,59 @@ function MainApp() {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, shared } : i)));
   };
 
-  const handleScan = async (qrCode: string) => {
+  const handleScan = (qrCode: string) => {
     const item = items.find((i) => i.qrCode === qrCode);
     if (!item) return;
     const isOut = checkedOutItems.includes(qrCode);
-    await supabase.from('inventory').update({ checked_out: !isOut }).eq('qr_code', qrCode);
+    if (isOut) {
+      // Checking IN — execute immediately, no prompt needed
+      executeCheckout(qrCode, null, null);
+    } else {
+      // Checking OUT — show details prompt
+      setShowScanner(false);
+      setPendingCheckoutQR(qrCode);
+    }
+  };
+
+  const executeCheckout = async (qrCode: string, purpose: string | null, dueDate: string | null) => {
+    const item = items.find((i) => i.qrCode === qrCode);
+    if (!item) return;
+    const isOut = checkedOutItems.includes(qrCode);
+    if (!isOut) {
+      await supabase.from('inventory').update({
+        checked_out: true,
+        borrow_count: (item.borrowCount ?? 0) + 1,
+        checkout_purpose: purpose,
+        checkout_due_date: dueDate,
+        checked_out_by: user?.id ?? null,
+      }).eq('qr_code', qrCode);
+      setItems((prev) => prev.map((i) =>
+        i.qrCode === qrCode
+          ? { ...i, checkedOut: true, borrowCount: (i.borrowCount ?? 0) + 1, checkoutPurpose: purpose ?? undefined, checkoutDueDate: dueDate ?? undefined }
+          : i
+      ));
+    } else {
+      await supabase.from('inventory').update({
+        checked_out: false,
+        checkout_purpose: null,
+        checkout_due_date: null,
+        checked_out_by: null,
+      }).eq('qr_code', qrCode);
+      setItems((prev) => prev.map((i) =>
+        i.qrCode === qrCode
+          ? { ...i, checkedOut: false, checkoutPurpose: undefined, checkoutDueDate: undefined }
+          : i
+      ));
+    }
     setCheckedOutItems((prev) => isOut ? prev.filter((q) => q !== qrCode) : [...prev, qrCode]);
     setScanResult({ item, action: isOut ? 'Checked In' : 'Checked Out' });
+    setShowScanner(true);
+    setPendingCheckoutQR(null);
   };
 
   const handleTableQRClick = (qrCode: string) => {
     setScanResult(null);
-    setShowScanner(true);
-    setTimeout(() => handleScan(qrCode), 500);
+    handleScan(qrCode);
   };
 
   const applySearch = (list: InventoryItem[]) => {
@@ -186,6 +233,7 @@ function MainApp() {
     { key: 'global-inventory', label: 'Global Inventory', icon: <Globe size={15} />,            count: globalItems.length },
     { key: 'marketplace',      label: 'Marketplace',      icon: <ArrowLeftRight size={15} />,   count: items.filter((i) => i.shared).length },
     { key: 'wanted',           label: 'Wanted',           icon: <Inbox size={15} />,            count: requestCount },
+    { key: 'leaderboard',      label: 'Leaderboard',      icon: <Trophy size={15} /> },
   ];
 
   // Only show Settings tab for eboard / OSI admin
@@ -235,7 +283,7 @@ function MainApp() {
           </div>
 
           {/* Toolbar */}
-          {activeTab !== 'wanted' && (
+          {activeTab !== 'wanted' && activeTab !== 'leaderboard' && (
           <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50 flex flex-wrap items-center gap-3">
             {activeTab !== 'marketplace' && (
               <div className="relative max-w-sm flex-1 min-w-[160px]">
@@ -321,6 +369,9 @@ function MainApp() {
                     onCountChange={setRequestCount}
                   />
                 )}
+                {activeTab === 'leaderboard' && (
+                  <Leaderboard items={items} />
+                )}
               </>
             )}
           </div>
@@ -334,6 +385,17 @@ function MainApp() {
           <span>Spring 2026</span>
         </div>
       </main>
+
+      {pendingCheckoutQR && (() => {
+        const pendingItem = items.find((i) => i.qrCode === pendingCheckoutQR);
+        return pendingItem ? (
+          <CheckoutDetailsModal
+            item={pendingItem}
+            onConfirm={(purpose, dueDate) => executeCheckout(pendingCheckoutQR, purpose, dueDate)}
+            onCancel={() => setPendingCheckoutQR(null)}
+          />
+        ) : null;
+      })()}
 
       {showAddItem && (
         <AddItemModal

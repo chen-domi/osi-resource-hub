@@ -188,6 +188,16 @@ function InventoryRow({ item, isCheckedOut, viewMode, canEdit, canToggle, onScan
           <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isCheckedOut ? '#dc2626' : '#16a34a' }} />
           {isCheckedOut ? 'Checked Out' : 'Available'}
         </span>
+        {isCheckedOut && item.checkoutDueDate && (
+          <p className="text-xs text-gray-400 mt-0.5 ml-1">
+            Due {new Date(item.checkoutDueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </p>
+        )}
+        {isCheckedOut && item.checkoutPurpose && (
+          <p className="text-xs text-gray-400 mt-0.5 ml-1 truncate max-w-[140px]" title={item.checkoutPurpose}>
+            {item.checkoutPurpose}
+          </p>
+        )}
       </td>
 
       {/* Qty */}
