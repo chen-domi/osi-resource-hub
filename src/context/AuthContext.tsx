@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { AuthUser } from '../types';
@@ -45,6 +45,7 @@ function deriveName(su: SupabaseUser): string {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const userRef = useRef<AuthUser | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsOrgSelection, setNeedsOrgSelection] = useState(false);
@@ -121,6 +122,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }
 
+  // Keep ref in sync so callbacks can always read the latest user without stale closures
+  useEffect(() => { userRef.current = user; }, [user]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -148,10 +152,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const selectOrg = useCallback((orgName: string, role: 'eboard') => {
     localStorage.setItem('currentOrg', orgName);
     localStorage.setItem('currentRole', role);
+
+    // Read current orgs from ref (always up-to-date, no stale closure)
+    const currentOrgs = userRef.current?.organizations ?? [];
+    const already = currentOrgs.some((o) => o.org === orgName);
+    const updatedOrgs = already
+      ? currentOrgs
+      : [...currentOrgs, { org: orgName, role: 'eboard' as const }];
+
     if (supabaseUser) {
-      supabase.from('profiles').update({ current_org: orgName }).eq('id', supabaseUser.id);
+      supabase.from('profiles')
+        .update({ current_org: orgName, organizations: updatedOrgs })
+        .eq('id', supabaseUser.id);
     }
-    setUser((prev) => prev ? { ...prev, currentOrg: orgName } : prev);
+    setUser((prev) => prev ? { ...prev, currentOrg: orgName, organizations: updatedOrgs } : prev);
     setNeedsOrgSelection(false);
   }, [supabaseUser]);
 
