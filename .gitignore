@@ -25,3 +25,4 @@ yarn-error.log*
 
 # E-board PIN reference — keep private
 eboard-pins.csv
+.claude/settings.local.json
