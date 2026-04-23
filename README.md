@@ -28,8 +28,7 @@ A shared inventory and resource-sharing platform for Boston College student orga
 ---
 
 
-https://github.com/user-attachments/assets/d3000f90-9628-4de6-b3da-873713b53959
-
+https://drive.google.com/file/d/1cf_zRnUZIkwKcZUFiVFllER9pG19gPmb/view?usp=sharing
 
 
 
