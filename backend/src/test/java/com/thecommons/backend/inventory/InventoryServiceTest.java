@@ -10,7 +10,10 @@ import static org.mockito.Mockito.when;
 
 import com.thecommons.backend.inventory.dto.CreateInventoryItemRequest;
 import com.thecommons.backend.inventory.exception.DuplicateQrCodeException;
+import com.thecommons.backend.inventory.exception.InventoryItemNotFoundException;
+
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -99,5 +102,35 @@ class InventoryServiceTest {
         );
         verify(inventoryRepository, never()).save(any(InventoryItem.class));
         verify(inventoryRepository).existsByQrCode("TEST-QR-001");
+    }
+
+    @Test
+    void getItemByIdReturnsItemWhenFound() {
+        InventoryItem item = new InventoryItem(
+            "TEST-QR-001",
+            "Test Table",
+            "Furniture",
+            "UGBC",
+            "Test Storage",
+            1
+        );
+
+        when(inventoryRepository.findById(1L)).thenReturn(Optional.of(item));
+
+        InventoryItem result = inventoryService.getItemById(1L);
+
+        assertSame(item, result);
+        verify(inventoryRepository).findById(1L);
+    }
+
+    @Test
+    void getItemByIdThrowsWhenItemIsMissing() {
+
+        when(inventoryRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(InventoryItemNotFoundException.class, () ->
+            inventoryService.getItemById(1L)
+        );
+        verify(inventoryRepository).findById(1L);
     }
 }
