@@ -2,19 +2,20 @@ package com.thecommons.backend.inventory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.any;
 
-
+import com.thecommons.backend.inventory.dto.CreateInventoryItemRequest;
+import com.thecommons.backend.inventory.exception.DuplicateQrCodeException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import com.thecommons.backend.inventory.dto.CreateInventoryItemRequest;
 
 @ExtendWith(MockitoExtension.class)
 class InventoryServiceTest {
@@ -62,13 +63,41 @@ class InventoryServiceTest {
             true
         );
 
-        when(inventoryRepository.existsByQrCode("TEST-QR-001")).thenReturn(false); 
-        when(inventoryRepository.save(any(InventoryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
-   
+        when(inventoryRepository.existsByQrCode("TEST-QR-001")).thenReturn(
+            false
+        );
+        when(inventoryRepository.save(any(InventoryItem.class))).thenAnswer(
+            invocation -> invocation.getArgument(0)
+        );
+
         InventoryItem result = inventoryService.createItem(request);
 
         assertEquals("TEST-QR-001", result.getQrCode());
         verify(inventoryRepository).existsByQrCode("TEST-QR-001");
         verify(inventoryRepository).save(any(InventoryItem.class));
+    }
+
+    @Test
+    void createItemThrowsWhenQrCodeAlreadyExists() {
+        CreateInventoryItemRequest request = new CreateInventoryItemRequest(
+            "TEST-QR-001",
+            "Test table",
+            "Furniture",
+            "Test organization",
+            "Test location",
+            1,
+            "Test event",
+            true
+        );
+
+        when(inventoryRepository.existsByQrCode("TEST-QR-001")).thenReturn(
+            true
+        );
+
+        assertThrows(DuplicateQrCodeException.class, () ->
+            inventoryService.createItem(request)
+        );
+        verify(inventoryRepository, never()).save(any(InventoryItem.class));
+        verify(inventoryRepository).existsByQrCode("TEST-QR-001");
     }
 }
