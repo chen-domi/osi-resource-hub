@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.thecommons.backend.inventory.dto.CreateInventoryItemRequest;
+import com.thecommons.backend.inventory.dto.UpdateInventoryItemRequest;
 import com.thecommons.backend.inventory.exception.DuplicateQrCodeException;
 import com.thecommons.backend.inventory.exception.InventoryItemNotFoundException;
 
@@ -32,13 +33,12 @@ class InventoryServiceTest {
     @Test
     void getAllItemsReturnsRepositoryItems() {
         InventoryItem item = new InventoryItem(
-            "TEST-QR-001",
-            "Test Table",
-            "Furniture",
-            "UGBC",
-            "Test Storage",
-            1
-        );
+                "TEST-QR-001",
+                "Test Table",
+                "Furniture",
+                "UGBC",
+                "Test Storage",
+                1);
 
         when(inventoryRepository.findAll()).thenReturn(List.of(item));
 
@@ -51,27 +51,21 @@ class InventoryServiceTest {
 
     @Test
     void createItemSavesItemWhenQrCodeIsUnique() {
-        //Arrange: Prepare the request and tell the fake repo how to behave
-        //Act: Call createItem()
-        //Assert: Check what happened
 
         CreateInventoryItemRequest request = new CreateInventoryItemRequest(
-            "TEST-QR-001",
-            "Test table",
-            "Furniture",
-            "Test organization",
-            "Test Location",
-            1,
-            "Test event",
-            true
-        );
+                "TEST-QR-001",
+                "Test table",
+                "Furniture",
+                "Test organization",
+                "Test Location",
+                1,
+                "Test event",
+                true);
 
         when(inventoryRepository.existsByQrCode("TEST-QR-001")).thenReturn(
-            false
-        );
+                false);
         when(inventoryRepository.save(any(InventoryItem.class))).thenAnswer(
-            invocation -> invocation.getArgument(0)
-        );
+                invocation -> invocation.getArgument(0));
 
         InventoryItem result = inventoryService.createItem(request);
 
@@ -83,23 +77,19 @@ class InventoryServiceTest {
     @Test
     void createItemThrowsWhenQrCodeAlreadyExists() {
         CreateInventoryItemRequest request = new CreateInventoryItemRequest(
-            "TEST-QR-001",
-            "Test table",
-            "Furniture",
-            "Test organization",
-            "Test location",
-            1,
-            "Test event",
-            true
-        );
+                "TEST-QR-001",
+                "Test table",
+                "Furniture",
+                "Test organization",
+                "Test location",
+                1,
+                "Test event",
+                true);
 
         when(inventoryRepository.existsByQrCode("TEST-QR-001")).thenReturn(
-            true
-        );
+                true);
 
-        assertThrows(DuplicateQrCodeException.class, () ->
-            inventoryService.createItem(request)
-        );
+        assertThrows(DuplicateQrCodeException.class, () -> inventoryService.createItem(request));
         verify(inventoryRepository, never()).save(any(InventoryItem.class));
         verify(inventoryRepository).existsByQrCode("TEST-QR-001");
     }
@@ -107,13 +97,12 @@ class InventoryServiceTest {
     @Test
     void getItemByIdReturnsItemWhenFound() {
         InventoryItem item = new InventoryItem(
-            "TEST-QR-001",
-            "Test Table",
-            "Furniture",
-            "UGBC",
-            "Test Storage",
-            1
-        );
+                "TEST-QR-001",
+                "Test Table",
+                "Furniture",
+                "UGBC",
+                "Test Storage",
+                1);
 
         when(inventoryRepository.findById(1L)).thenReturn(Optional.of(item));
 
@@ -128,9 +117,64 @@ class InventoryServiceTest {
 
         when(inventoryRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(InventoryItemNotFoundException.class, () ->
-            inventoryService.getItemById(1L)
-        );
+        assertThrows(InventoryItemNotFoundException.class, () -> inventoryService.getItemById(1L));
         verify(inventoryRepository).findById(1L);
+    }
+
+    @Test
+    void updateItemUpdatesAndSavesExistingItem() {
+        InventoryItem item = new InventoryItem(
+                "TEST-QR-001",
+                "Old name",
+                "Old category",
+                "Old organization",
+                "Old location",
+                1);
+
+        UpdateInventoryItemRequest request = new UpdateInventoryItemRequest(
+                "New name",
+                "New category",
+                "New organization",
+                "New location",
+                5,
+                "New event",
+                true);
+
+        when(inventoryRepository.findById(1L)).thenReturn(Optional.of(item));
+        when(inventoryRepository.save(any(InventoryItem.class))).thenAnswer(
+                invocation -> invocation.getArgument(0));
+
+        InventoryItem result = inventoryService.updateItem(1L, request);
+
+        assertSame(item, result);
+        assertEquals("New name", result.getName());
+        assertEquals("New category", result.getCategory());
+        assertEquals("New organization", result.getOrganization());
+        assertEquals("New location", result.getLocation());
+        assertEquals(5, result.getQuantity());
+        assertEquals("New event", result.getLastUsed());
+        assertEquals(true, result.isShared());
+
+        verify(inventoryRepository).findById(1L);
+        verify(inventoryRepository).save(item);
+    }
+
+    @Test
+    void updateItemThrowsWhenItemIsMissing() {
+
+        UpdateInventoryItemRequest request = new UpdateInventoryItemRequest(
+                "New name",
+                "New category",
+                "New organization",
+                "New location",
+                5,
+                "New event",
+                true);
+
+        when(inventoryRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(InventoryItemNotFoundException.class, () -> inventoryService.updateItem(1L, request));
+        verify(inventoryRepository).findById(1L);
+        verify(inventoryRepository, never()).save(any(InventoryItem.class));
     }
 }
