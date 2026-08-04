@@ -177,4 +177,34 @@ class InventoryServiceTest {
         verify(inventoryRepository).findById(1L);
         verify(inventoryRepository, never()).save(any(InventoryItem.class));
     }
+
+    @Test
+    void deleteItemDeletesExistingItem() {
+        InventoryItem item = new InventoryItem(
+                "TEST-QR-001",
+                "Test Table",
+                "Furniture",
+                "UGBC",
+                "Test Storage",
+                1);
+
+        when(inventoryRepository.findById(1L)).thenReturn(Optional.of(item));
+
+        inventoryService.deleteItem(1L);
+
+        verify(inventoryRepository).findById(1L);
+        verify(inventoryRepository).delete(item);
+    }
+
+    @Test
+    void deleteItemThrowsWhenItemIsMissing() {
+        when(inventoryRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(
+                InventoryItemNotFoundException.class,
+                () -> inventoryService.deleteItem(1L));
+
+        verify(inventoryRepository).findById(1L);
+        verify(inventoryRepository, never()).delete(any(InventoryItem.class));
+    }
 }
