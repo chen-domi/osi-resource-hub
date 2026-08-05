@@ -3,16 +3,20 @@ package com.thecommons.backend.inventory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.thecommons.backend.inventory.dto.CreateInventoryItemRequest;
+import com.thecommons.backend.inventory.dto.CheckOutInventoryItemRequest;
 import com.thecommons.backend.inventory.dto.UpdateInventoryItemRequest;
 import com.thecommons.backend.inventory.exception.DuplicateQrCodeException;
+import com.thecommons.backend.inventory.exception.InventoryItemAlreadyCheckedOutException;
 import com.thecommons.backend.inventory.exception.InventoryItemNotFoundException;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -206,5 +210,61 @@ class InventoryServiceTest {
 
         verify(inventoryRepository).findById(1L);
         verify(inventoryRepository, never()).delete(any(InventoryItem.class));
+    }
+
+    @Test
+    void checkoutItemUpdatesAndSavesAvailableItem() {
+        InventoryItem item = new InventoryItem(
+                "TEST-QR-001",
+                "Test Table",
+                "Furniture",
+                "UGBC",
+                "Test Storage",
+                1);
+        LocalDate dueDate = LocalDate.of(2099, 1, 1);
+        CheckOutInventoryItemRequest request =
+                new CheckOutInventoryItemRequest("Test event", dueDate);
+
+        when(inventoryRepository.findById(1L)).thenReturn(Optional.of(item));
+        when(inventoryRepository.save(any(InventoryItem.class))).thenAnswer(
+                invocation -> invocation.getArgument(0));
+
+        InventoryItem result = inventoryService.checkoutItem(1L, request);
+
+        assertSame(item, result);
+        assertTrue(result.isCheckedOut());
+        assertEquals("Test event", result.getCheckoutPurpose());
+        assertEquals(dueDate, result.getCheckoutDueDate());
+        assertEquals(1, result.getBorrowCount());
+
+        verify(inventoryRepository).findById(1L);
+        verify(inventoryRepository).save(item);
+    }
+
+    @Test
+    void checkoutItemThrowsWhenItemIsAlreadyCheckedOut() {
+        InventoryItem item = new InventoryItem(
+                "TEST-QR-001",
+                "Test Table",
+                "Furniture",
+                "UGBC",
+                "Test Storage",
+                1);
+
+        item.setCheckedOut(true);
+
+        CheckOutInventoryItemRequest request =
+                new CheckOutInventoryItemRequest(
+                        "Another event",
+                        LocalDate.of(2099, 1, 1));
+
+        when(inventoryRepository.findById(1L)).thenReturn(Optional.of(item));
+
+        assertThrows(
+                InventoryItemAlreadyCheckedOutException.class,
+                () -> inventoryService.checkoutItem(1L, request));
+
+        verify(inventoryRepository).findById(1L);
+        verify(inventoryRepository, never()).save(any(InventoryItem.class));
     }
 }
