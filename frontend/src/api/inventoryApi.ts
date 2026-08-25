@@ -38,6 +38,18 @@ function toInventoryItem(response: InventoryItemResponse): InventoryItem {
   };
 }
 
+function inventoryRequestBody(item: InventoryItem) {
+  return {
+    name: item.name,
+    category: item.category,
+    organization: item.org,
+    location: item.location,
+    quantity: item.quantity,
+    lastUsed: item.lastUsed === '—' ? null : item.lastUsed,
+    shared: item.shared,
+  };
+}
+
 async function responseError(response: Response): Promise<Error> {
   try {
     const data: { message?: string } = await response.json();
@@ -70,14 +82,27 @@ export async function createInventoryItem(
     },
     body: JSON.stringify({
       qrCode: item.qrCode,
-      name: item.name,
-      category: item.category,
-      organization: item.org,
-      location: item.location,
-      quantity: item.quantity,
-      lastUsed: item.lastUsed === '—' ? null : item.lastUsed,
-      shared: item.shared,
+      ...inventoryRequestBody(item),
     }),
+  });
+
+  if (!response.ok) {
+    throw await responseError(response);
+  }
+
+  const data: InventoryItemResponse = await response.json();
+  return toInventoryItem(data);
+}
+
+export async function updateInventoryItem(
+  item: InventoryItem
+): Promise<InventoryItem> {
+  const response = await fetch(`${API_URL}/api/inventory/${item.id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(inventoryRequestBody(item)),
   });
 
   if (!response.ok) {

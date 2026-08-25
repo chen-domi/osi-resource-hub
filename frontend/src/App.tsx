@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox, ShieldCheck, Trophy } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { createInventoryItem, getInventory } from './api/inventoryApi';
+import {
+  createInventoryItem,
+  getInventory,
+  updateInventoryItem,
+} from './api/inventoryApi';
 import { localData } from './lib/localData';
 import Header from './components/Header';
 import ImpactDashboard from './components/ImpactDashboard';
@@ -121,11 +125,20 @@ function MainApp() {
         return;
       }
     } else {
-      setItems((previous) =>
-        localData.saveInventory(
-          previous.map((item) => item.id === saved.id ? saved : item)
-        )
-      );
+      try {
+        setInventoryActionError(null);
+        const updatedItem = await updateInventoryItem(saved);
+        setItems((previous) =>
+          previous.map((item) =>
+            item.id === updatedItem.id ? updatedItem : item
+          )
+        );
+      } catch (error) {
+        setInventoryActionError(
+          error instanceof Error ? error.message : 'Could not update inventory item'
+        );
+        return;
+      }
     }
 
     setShowAddItem(false);
