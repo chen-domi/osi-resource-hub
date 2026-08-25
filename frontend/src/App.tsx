@@ -4,6 +4,7 @@ import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox, ShieldChe
 import { AuthProvider, useAuth } from './context/AuthContext';
 import {
   createInventoryItem,
+  deleteInventoryItem,
   getInventory,
   updateInventoryItem,
 } from './api/inventoryApi';
@@ -146,7 +147,15 @@ function MainApp() {
   };
 
   const handleDeleteItem = async (id: number) => {
-    setItems((prev) => localData.saveInventory(prev.filter((i) => i.id !== id)));
+    try {
+      setInventoryActionError(null);
+      await deleteInventoryItem(id);
+      setItems((previous) => previous.filter((item) => item.id !== id));
+    } catch (error) {
+      setInventoryActionError(
+        error instanceof Error ? error.message : 'Could not delete inventory item'
+      );
+    }
   };
 
   const handleToggleShare = async (id: number, shared: boolean) => {

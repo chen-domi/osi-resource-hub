@@ -112,3 +112,13 @@ export async function updateInventoryItem(
   const data: InventoryItemResponse = await response.json();
   return toInventoryItem(data);
 }
+
+export async function deleteInventoryItem(id: number): Promise<void> {
+  const response = await fetch(`${API_URL}/api/inventory/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw await responseError(response);
+  }
+}
