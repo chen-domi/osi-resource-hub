@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox, ShieldCheck, Trophy } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { getInventory } from './api/inventoryApi';
 import { localData } from './lib/localData';
 import Header from './components/Header';
 import ImpactDashboard from './components/ImpactDashboard';
@@ -45,6 +46,7 @@ function MainApp() {
   const { user } = useAuth();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [inventoryError, setInventoryError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('club-inventory');
   const [searchTerm, setSearchTerm] = useState('');
   const [showScanner, setShowScanner] = useState(false);
@@ -72,12 +74,30 @@ function MainApp() {
   // Reset search and filters on tab change
   useEffect(() => { setSearchTerm(''); setFilterCategory(''); setFilterOrg(''); }, [activeTab]);
 
-  // Local browser data keeps the frontend usable until the Spring API is connected.
   useEffect(() => {
-    const data = localData.getInventory();
-    setItems(data);
-    setCheckedOutItems(data.filter((item) => item.checkedOut).map((item) => item.qrCode));
-    setLoadingItems(false);
+    let cancelled = false;
+
+    async function loadInventory() {
+      try {
+        const data = await getInventory();
+        if (cancelled) return;
+
+        setItems(data);
+        setCheckedOutItems(
+          data.filter((item) => item.checkedOut).map((item) => item.qrCode)
+        );
+      } catch (error) {
+        if (cancelled) return;
+        setInventoryError(
+          error instanceof Error ? error.message : 'Could not load inventory'
+        );
+      } finally {
+        if (!cancelled) setLoadingItems(false);
+      }
+    }
+
+    loadInventory();
+    return () => { cancelled = true; };
   }, []);
 
   // Load request count for tab badge
@@ -272,6 +292,11 @@ function MainApp() {
               <div className="text-center py-16 text-gray-400">
                 <div className="w-8 h-8 rounded-full border-4 border-gray-200 border-t-gray-400 animate-spin mx-auto mb-3" />
                 <p className="text-sm">Loading inventory…</p>
+              </div>
+            ) : inventoryError ? (
+              <div className="text-center py-16 text-red-700">
+                <p className="font-semibold">Inventory could not be loaded.</p>
+                <p className="text-sm mt-1">{inventoryError}</p>
               </div>
             ) : (
               <>
