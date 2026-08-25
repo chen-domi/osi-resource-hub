@@ -38,13 +38,52 @@ function toInventoryItem(response: InventoryItemResponse): InventoryItem {
   };
 }
 
+async function responseError(response: Response): Promise<Error> {
+  try {
+    const data: { message?: string } = await response.json();
+    if (data.message) return new Error(data.message);
+  } catch {
+    // The response did not contain a JSON error body.
+  }
+
+  return new Error(`Inventory request failed (${response.status})`);
+}
+
 export async function getInventory(): Promise<InventoryItem[]> {
   const response = await fetch(`${API_URL}/api/inventory`);
 
   if (!response.ok) {
-    throw new Error(`Could not load inventory (${response.status})`);
+    throw await responseError(response);
   }
 
   const data: InventoryItemResponse[] = await response.json();
   return data.map(toInventoryItem);
+}
+
+export async function createInventoryItem(
+  item: InventoryItem
+): Promise<InventoryItem> {
+  const response = await fetch(`${API_URL}/api/inventory`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      qrCode: item.qrCode,
+      name: item.name,
+      category: item.category,
+      organization: item.org,
+      location: item.location,
+      quantity: item.quantity,
+      lastUsed: item.lastUsed === '—' ? null : item.lastUsed,
+      shared: item.shared,
+    }),
+  });
+
+  if (!response.ok) {
+    throw await responseError(response);
+  }
+
+  const data: InventoryItemResponse = await response.json();
+  return toInventoryItem(data);
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox, ShieldCheck, Trophy } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { getInventory } from './api/inventoryApi';
+import { createInventoryItem, getInventory } from './api/inventoryApi';
 import { localData } from './lib/localData';
 import Header from './components/Header';
 import ImpactDashboard from './components/ImpactDashboard';
@@ -47,6 +47,7 @@ function MainApp() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [inventoryError, setInventoryError] = useState<string | null>(null);
+  const [inventoryActionError, setInventoryActionError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('club-inventory');
   const [searchTerm, setSearchTerm] = useState('');
   const [showScanner, setShowScanner] = useState(false);
@@ -107,10 +108,26 @@ function MainApp() {
 
   const handleSaveItem = async (saved: InventoryItem) => {
     const isNew = !items.some((i) => i.id === saved.id);
-    setItems((prev) => {
-      const next = isNew ? [...prev, saved] : prev.map((i) => (i.id === saved.id ? saved : i));
-      return localData.saveInventory(next);
-    });
+
+    if (isNew) {
+      try {
+        setInventoryActionError(null);
+        const createdItem = await createInventoryItem(saved);
+        setItems((previous) => [...previous, createdItem]);
+      } catch (error) {
+        setInventoryActionError(
+          error instanceof Error ? error.message : 'Could not create inventory item'
+        );
+        return;
+      }
+    } else {
+      setItems((previous) =>
+        localData.saveInventory(
+          previous.map((item) => item.id === saved.id ? saved : item)
+        )
+      );
+    }
+
     setShowAddItem(false);
     setEditingItem(null);
   };
@@ -288,6 +305,11 @@ function MainApp() {
 
           {/* Content */}
           <div className="p-5">
+            {inventoryActionError && (
+              <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                {inventoryActionError}
+              </div>
+            )}
             {loadingItems ? (
               <div className="text-center py-16 text-gray-400">
                 <div className="w-8 h-8 rounded-full border-4 border-gray-200 border-t-gray-400 animate-spin mx-auto mb-3" />
