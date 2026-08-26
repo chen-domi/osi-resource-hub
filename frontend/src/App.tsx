@@ -3,6 +3,8 @@ import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox, ShieldChe
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import {
+  checkinInventoryItem,
+  checkoutInventoryItem,
   createInventoryItem,
   deleteInventoryItem,
   getInventory,
@@ -197,24 +199,41 @@ function MainApp() {
     const item = items.find((i) => i.qrCode === qrCode);
     if (!item) return;
     const isOut = checkedOutItems.includes(qrCode);
-    if (!isOut) {
-      setItems((prev) => prev.map((i) =>
-        i.qrCode === qrCode
-          ? { ...i, checkedOut: true, borrowCount: (i.borrowCount ?? 0) + 1, checkoutPurpose: purpose ?? undefined, checkoutDueDate: dueDate ?? undefined }
-          : i
-      ));
-    } else {
-      setItems((prev) => prev.map((i) =>
-        i.qrCode === qrCode
-          ? { ...i, checkedOut: false, checkoutPurpose: undefined, checkoutDueDate: undefined }
-          : i
-      ));
+
+    if (!isOut && (!purpose || !dueDate)) {
+      setInventoryActionError('Checkout purpose and due date are required');
+      return;
     }
-    setItems((prev) => localData.saveInventory(prev));
-    setCheckedOutItems((prev) => isOut ? prev.filter((q) => q !== qrCode) : [...prev, qrCode]);
-    setScanResult({ item, action: isOut ? 'Checked In' : 'Checked Out' });
-    setShowScanner(true);
-    setPendingCheckoutQR(null);
+
+    try {
+      setInventoryActionError(null);
+      const updatedItem = isOut
+        ? await checkinInventoryItem(item.id)
+        : await checkoutInventoryItem(item.id, purpose!, dueDate!);
+
+      setItems((previous) =>
+        previous.map((currentItem) =>
+          currentItem.id === updatedItem.id ? updatedItem : currentItem
+        )
+      );
+      setCheckedOutItems((previous) =>
+        updatedItem.checkedOut
+          ? [...previous.filter((code) => code !== qrCode), qrCode]
+          : previous.filter((code) => code !== qrCode)
+      );
+      setScanResult({
+        item: updatedItem,
+        action: isOut ? 'Checked In' : 'Checked Out',
+      });
+      setShowScanner(true);
+      setPendingCheckoutQR(null);
+    } catch (error) {
+      setInventoryActionError(
+        error instanceof Error
+          ? error.message
+          : `Could not check ${isOut ? 'in' : 'out'} inventory item`
+      );
+    }
   };
 
   const handleTableQRClick = (qrCode: string) => {

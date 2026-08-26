@@ -122,3 +122,37 @@ export async function deleteInventoryItem(id: number): Promise<void> {
     throw await responseError(response);
   }
 }
+
+export async function checkoutInventoryItem(
+  id: number,
+  purpose: string,
+  dueDate: string
+): Promise<InventoryItem> {
+  const response = await fetch(`${API_URL}/api/inventory/${id}/checkout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ purpose, dueDate }),
+  });
+
+  if (!response.ok) {
+    throw await responseError(response);
+  }
+
+  const data: InventoryItemResponse = await response.json();
+  return toInventoryItem(data);
+}
+
+export async function checkinInventoryItem(id: number): Promise<InventoryItem> {
+  const response = await fetch(`${API_URL}/api/inventory/${id}/checkin`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    throw await responseError(response);
+  }
+
+  const data: InventoryItemResponse = await response.json();
+  return toInventoryItem(data);
+}
