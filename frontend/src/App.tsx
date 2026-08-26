@@ -159,7 +159,24 @@ function MainApp() {
   };
 
   const handleToggleShare = async (id: number, shared: boolean) => {
-    setItems((prev) => localData.saveInventory(prev.map((i) => (i.id === id ? { ...i, shared } : i))));
+    const item = items.find((currentItem) => currentItem.id === id);
+    if (!item) return;
+
+    try {
+      setInventoryActionError(null);
+      const updatedItem = await updateInventoryItem({ ...item, shared });
+      setItems((previous) =>
+        previous.map((currentItem) =>
+          currentItem.id === updatedItem.id ? updatedItem : currentItem
+        )
+      );
+    } catch (error) {
+      setInventoryActionError(
+        error instanceof Error
+          ? error.message
+          : 'Could not update inventory sharing'
+      );
+    }
   };
 
   const handleScan = (qrCode: string) => {
