@@ -1,7 +1,5 @@
-import { inventoryItems } from '../data/inventory';
-import { InventoryItem, ItemRequest } from '../types';
+import { ItemRequest } from '../types';
 
-const INVENTORY_KEY = 'commons.inventory';
 const REQUESTS_KEY = 'commons.requests';
 const PINS_KEY = 'commons.organizationPins';
 
@@ -20,14 +18,6 @@ function write<T>(key: string, value: T): T {
 }
 
 export const localData = {
-  getInventory(): InventoryItem[] {
-    return read(INVENTORY_KEY, inventoryItems);
-  },
-
-  saveInventory(items: InventoryItem[]): InventoryItem[] {
-    return write(INVENTORY_KEY, items);
-  },
-
   getRequests(): ItemRequest[] {
     return read(REQUESTS_KEY, []);
   },
