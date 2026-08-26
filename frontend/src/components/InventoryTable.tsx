@@ -95,7 +95,17 @@ interface RowProps {
   onToggleShare: (id: number, shared: boolean) => void;
 }
 
-function QRModal({ qrCode, onClose }: { qrCode: string; onClose: () => void }) {
+function QRModal({
+  qrCode,
+  isCheckedOut,
+  onAction,
+  onClose,
+}: {
+  qrCode: string;
+  isCheckedOut: boolean;
+  onAction: () => void;
+  onClose: () => void;
+}) {
   function handlePrint() {
     const win = window.open('', '_blank', 'width=300,height=350');
     if (!win) return;
@@ -131,12 +141,26 @@ function QRModal({ qrCode, onClose }: { qrCode: string; onClose: () => void }) {
             <Printer size={14} /> Print
           </button>
         </div>
+        <button
+          onClick={() => { onClose(); onAction(); }}
+          className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-colors hover:opacity-90"
+          style={{ backgroundColor: '#8B0000' }}>
+          {isCheckedOut ? 'Check In Item' : 'Check Out Item'}
+        </button>
       </div>
     </div>
   );
 }
 
-function QRPopover({ qrCode }: { qrCode: string }) {
+function QRPopover({
+  qrCode,
+  isCheckedOut,
+  onScanClick,
+}: {
+  qrCode: string;
+  isCheckedOut: boolean;
+  onScanClick: (qrCode: string) => void;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -146,17 +170,28 @@ function QRPopover({ qrCode }: { qrCode: string }) {
         style={{ borderColor: '#CFB87C', color: '#8B0000', backgroundColor: '#fffbeb' }}>
         <QrCode size={12} />{qrCode}
       </button>
-      {open && <QRModal qrCode={qrCode} onClose={() => setOpen(false)} />}
+      {open && (
+        <QRModal
+          qrCode={qrCode}
+          isCheckedOut={isCheckedOut}
+          onAction={() => onScanClick(qrCode)}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }
 
-function InventoryRow({ item, isCheckedOut, viewMode, canEdit, canToggle, onScanClick: _onScanClick, onEdit, onDelete, onToggleShare }: RowProps) {
+function InventoryRow({ item, isCheckedOut, viewMode, canEdit, canToggle, onScanClick, onEdit, onDelete, onToggleShare }: RowProps) {
   return (
     <tr className={`transition-colors ${isCheckedOut ? 'bg-gray-50 hover:bg-gray-100' : 'bg-white hover:bg-amber-50'}`}>
       {/* QR Code */}
       <td className="px-4 py-3">
-        <QRPopover qrCode={item.qrCode} />
+        <QRPopover
+          qrCode={item.qrCode}
+          isCheckedOut={isCheckedOut}
+          onScanClick={onScanClick}
+        />
       </td>
 
       {/* Name + category */}

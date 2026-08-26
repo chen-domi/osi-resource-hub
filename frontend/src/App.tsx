@@ -2,6 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Search, Package, Recycle, ArrowLeftRight, Plus, Globe, Inbox, ShieldCheck, Trophy } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
+import {
+  checkinInventoryItem,
+  checkoutInventoryItem,
+  createInventoryItem,
+  deleteInventoryItem,
+  getInventory,
+  updateInventoryItem,
+} from './api/inventoryApi';
 import { localData } from './lib/localData';
 import Header from './components/Header';
 import ImpactDashboard from './components/ImpactDashboard';
@@ -45,6 +53,8 @@ function MainApp() {
   const { user } = useAuth();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [inventoryError, setInventoryError] = useState<string | null>(null);
+  const [inventoryActionError, setInventoryActionError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('club-inventory');
   const [searchTerm, setSearchTerm] = useState('');
   const [showScanner, setShowScanner] = useState(false);
@@ -72,12 +82,30 @@ function MainApp() {
   // Reset search and filters on tab change
   useEffect(() => { setSearchTerm(''); setFilterCategory(''); setFilterOrg(''); }, [activeTab]);
 
-  // Local browser data keeps the frontend usable until the Spring API is connected.
   useEffect(() => {
-    const data = localData.getInventory();
-    setItems(data);
-    setCheckedOutItems(data.filter((item) => item.checkedOut).map((item) => item.qrCode));
-    setLoadingItems(false);
+    let cancelled = false;
+
+    async function loadInventory() {
+      try {
+        const data = await getInventory();
+        if (cancelled) return;
+
+        setItems(data);
+        setCheckedOutItems(
+          data.filter((item) => item.checkedOut).map((item) => item.qrCode)
+        );
+      } catch (error) {
+        if (cancelled) return;
+        setInventoryError(
+          error instanceof Error ? error.message : 'Could not load inventory'
+        );
+      } finally {
+        if (!cancelled) setLoadingItems(false);
+      }
+    }
+
+    loadInventory();
+    return () => { cancelled = true; };
   }, []);
 
   // Load request count for tab badge
@@ -87,20 +115,70 @@ function MainApp() {
 
   const handleSaveItem = async (saved: InventoryItem) => {
     const isNew = !items.some((i) => i.id === saved.id);
-    setItems((prev) => {
-      const next = isNew ? [...prev, saved] : prev.map((i) => (i.id === saved.id ? saved : i));
-      return localData.saveInventory(next);
-    });
+
+    if (isNew) {
+      try {
+        setInventoryActionError(null);
+        const createdItem = await createInventoryItem(saved);
+        setItems((previous) => [...previous, createdItem]);
+      } catch (error) {
+        setInventoryActionError(
+          error instanceof Error ? error.message : 'Could not create inventory item'
+        );
+        return;
+      }
+    } else {
+      try {
+        setInventoryActionError(null);
+        const updatedItem = await updateInventoryItem(saved);
+        setItems((previous) =>
+          previous.map((item) =>
+            item.id === updatedItem.id ? updatedItem : item
+          )
+        );
+      } catch (error) {
+        setInventoryActionError(
+          error instanceof Error ? error.message : 'Could not update inventory item'
+        );
+        return;
+      }
+    }
+
     setShowAddItem(false);
     setEditingItem(null);
   };
 
   const handleDeleteItem = async (id: number) => {
-    setItems((prev) => localData.saveInventory(prev.filter((i) => i.id !== id)));
+    try {
+      setInventoryActionError(null);
+      await deleteInventoryItem(id);
+      setItems((previous) => previous.filter((item) => item.id !== id));
+    } catch (error) {
+      setInventoryActionError(
+        error instanceof Error ? error.message : 'Could not delete inventory item'
+      );
+    }
   };
 
   const handleToggleShare = async (id: number, shared: boolean) => {
-    setItems((prev) => localData.saveInventory(prev.map((i) => (i.id === id ? { ...i, shared } : i))));
+    const item = items.find((currentItem) => currentItem.id === id);
+    if (!item) return;
+
+    try {
+      setInventoryActionError(null);
+      const updatedItem = await updateInventoryItem({ ...item, shared });
+      setItems((previous) =>
+        previous.map((currentItem) =>
+          currentItem.id === updatedItem.id ? updatedItem : currentItem
+        )
+      );
+    } catch (error) {
+      setInventoryActionError(
+        error instanceof Error
+          ? error.message
+          : 'Could not update inventory sharing'
+      );
+    }
   };
 
   const handleScan = (qrCode: string) => {
@@ -121,24 +199,41 @@ function MainApp() {
     const item = items.find((i) => i.qrCode === qrCode);
     if (!item) return;
     const isOut = checkedOutItems.includes(qrCode);
-    if (!isOut) {
-      setItems((prev) => prev.map((i) =>
-        i.qrCode === qrCode
-          ? { ...i, checkedOut: true, borrowCount: (i.borrowCount ?? 0) + 1, checkoutPurpose: purpose ?? undefined, checkoutDueDate: dueDate ?? undefined }
-          : i
-      ));
-    } else {
-      setItems((prev) => prev.map((i) =>
-        i.qrCode === qrCode
-          ? { ...i, checkedOut: false, checkoutPurpose: undefined, checkoutDueDate: undefined }
-          : i
-      ));
+
+    if (!isOut && (!purpose || !dueDate)) {
+      setInventoryActionError('Checkout purpose and due date are required');
+      return;
     }
-    setItems((prev) => localData.saveInventory(prev));
-    setCheckedOutItems((prev) => isOut ? prev.filter((q) => q !== qrCode) : [...prev, qrCode]);
-    setScanResult({ item, action: isOut ? 'Checked In' : 'Checked Out' });
-    setShowScanner(true);
-    setPendingCheckoutQR(null);
+
+    try {
+      setInventoryActionError(null);
+      const updatedItem = isOut
+        ? await checkinInventoryItem(item.id)
+        : await checkoutInventoryItem(item.id, purpose!, dueDate!);
+
+      setItems((previous) =>
+        previous.map((currentItem) =>
+          currentItem.id === updatedItem.id ? updatedItem : currentItem
+        )
+      );
+      setCheckedOutItems((previous) =>
+        updatedItem.checkedOut
+          ? [...previous.filter((code) => code !== qrCode), qrCode]
+          : previous.filter((code) => code !== qrCode)
+      );
+      setScanResult({
+        item: updatedItem,
+        action: isOut ? 'Checked In' : 'Checked Out',
+      });
+      setShowScanner(true);
+      setPendingCheckoutQR(null);
+    } catch (error) {
+      setInventoryActionError(
+        error instanceof Error
+          ? error.message
+          : `Could not check ${isOut ? 'in' : 'out'} inventory item`
+      );
+    }
   };
 
   const handleTableQRClick = (qrCode: string) => {
@@ -268,10 +363,20 @@ function MainApp() {
 
           {/* Content */}
           <div className="p-5">
+            {inventoryActionError && (
+              <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                {inventoryActionError}
+              </div>
+            )}
             {loadingItems ? (
               <div className="text-center py-16 text-gray-400">
                 <div className="w-8 h-8 rounded-full border-4 border-gray-200 border-t-gray-400 animate-spin mx-auto mb-3" />
                 <p className="text-sm">Loading inventory…</p>
+              </div>
+            ) : inventoryError ? (
+              <div className="text-center py-16 text-red-700">
+                <p className="font-semibold">Inventory could not be loaded.</p>
+                <p className="text-sm mt-1">{inventoryError}</p>
               </div>
             ) : (
               <>
