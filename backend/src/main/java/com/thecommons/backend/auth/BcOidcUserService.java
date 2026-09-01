@@ -14,8 +14,18 @@ public class BcOidcUserService
 
     private static final String ALLOWED_DOMAIN = "bc.edu";
 
-    private final OidcUserService googleOidcUserService =
-            new OidcUserService();
+    private final OAuth2UserService<OidcUserRequest, OidcUser>
+            googleOidcUserService;
+
+    public BcOidcUserService() {
+        this(new OidcUserService());
+    }
+
+    BcOidcUserService(
+            OAuth2UserService<OidcUserRequest, OidcUser>
+                    googleOidcUserService) {
+        this.googleOidcUserService = googleOidcUserService;
+    }
 
     @Override
     public OidcUser loadUser(OidcUserRequest userRequest)
