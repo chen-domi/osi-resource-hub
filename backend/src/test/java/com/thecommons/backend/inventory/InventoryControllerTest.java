@@ -28,7 +28,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(InventoryController.class)
+@WebMvcTest(
+        value = InventoryController.class,
+        properties = "spring.autoconfigure.exclude="
+                + "org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration,"
+                + "org.springframework.boot.security.oauth2.client.autoconfigure.servlet.OAuth2ClientWebSecurityAutoConfiguration")
 @AutoConfigureMockMvc(addFilters = false)
 class InventoryControllerTest {
 
