@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { getCurrentUser } from '../api/authApi';
 import { AuthUser } from '../types';
 import { localData } from '../lib/localData';
 
@@ -44,10 +45,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Temporary local session: open the dashboard immediately until Spring auth is connected.
-    devLogin();
-    setLoading(false);
-  }, [devLogin]);
+    let cancelled = false;
+
+    async function loadSession() {
+      try {
+        const authenticatedUser = await getCurrentUser();
+        if (cancelled) return;
+
+        if (!authenticatedUser) {
+          setUser(null);
+          setNeedsOrgSelection(false);
+          return;
+        }
+
+        const currentOrg = localStorage.getItem('currentOrg') ?? '';
+        const currentRole = localStorage.getItem('currentRole') as
+          | 'eboard'
+          | null;
+
+        setUser({
+          id: authenticatedUser.email,
+          name: authenticatedUser.name,
+          email: authenticatedUser.email,
+          organizations: currentOrg && currentRole
+            ? [{ org: currentOrg, role: currentRole }]
+            : [],
+          currentOrg,
+          isOSIAdmin: currentOrg === 'OSI',
+        });
+        setNeedsOrgSelection(!currentOrg);
+      } catch (error) {
+        if (cancelled) return;
+        setUser(null);
+        setAuthError(
+          error instanceof Error
+            ? error.message
+            : 'Could not check login status'
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadSession();
+    return () => { cancelled = true; };
+  }, []);
 
   const selectOrg = useCallback((orgName: string, role: 'eboard') => {
     localStorage.setItem('currentOrg', orgName);

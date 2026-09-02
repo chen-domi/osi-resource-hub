@@ -42,7 +42,7 @@ function GoogleButton({ onClick, loading }: { onClick: () => void; loading?: boo
         <path fill="#FBBC05" d="M10.6 28.4A14.8 14.8 0 0 1 9.5 24c0-1.5.3-3 .7-4.4l-7.9-6.1A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.7 10.7l7.9-6.3z"/>
         <path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.6-5.9c-2 1.4-4.6 2.2-7.6 2.2-6.2 0-11.5-3.8-13.4-9.4l-7.9 6.3C6.6 42.5 14.6 48 24 48z"/>
       </svg>
-      {loading ? 'Opening…' : 'Enter local preview'}
+      {loading ? 'Opening…' : 'Sign in with BC Google'}
     </button>
   );
 }
@@ -53,10 +53,10 @@ function LandingScreen() {
   const { devLogin, authError, clearAuthError } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  async function handleGoogle() {
+  function handleGoogle() {
     clearAuthError();
     setGoogleLoading(true);
-    devLogin();
+    window.location.assign('http://localhost:8080/oauth2/authorization/google');
   }
 
   return (
