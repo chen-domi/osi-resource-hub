@@ -95,7 +95,7 @@ function LandingScreen() {
 // ── Org + PIN step ─────────────────────────────────────────────────────────────
 
 function OrgPinStep() {
-  const { user, joinOrg, selectOrg } = useAuth();
+  const { user, joinOrg, selectOrg, logout } = useAuth();
   const [orgs, setOrgs] = useState<string[]>([]);
   const [loadingOrgs, setLoadingOrgs] = useState(true);
   const [selectedOrg, setSelectedOrg] = useState('');
@@ -311,11 +311,7 @@ function OrgPinStep() {
 
         {/* Sign out link */}
         <button type="button"
-          onClick={() => {
-            localStorage.removeItem('currentOrg');
-            localStorage.removeItem('currentRole');
-            window.location.reload();
-          }}
+          onClick={logout}
           className="block text-center mx-auto mt-4 text-xs transition-opacity hover:opacity-60"
           style={{ color: 'rgba(255,255,255,0.35)' }}>
           Sign out

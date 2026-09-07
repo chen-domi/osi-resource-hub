@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { getCurrentUser } from '../api/authApi';
+import { endCurrentSession, getCurrentUser } from '../api/authApi';
 import { AuthUser } from '../types';
 import { localData } from '../lib/localData';
 
@@ -106,6 +106,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    try {
+      await endCurrentSession();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Could not sign out');
+      return;
+    }
+
     localStorage.removeItem('currentOrg');
     localStorage.removeItem('currentRole');
     setUser(null);

@@ -21,7 +21,9 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/inventory", "/api/inventory/**"))
+                        .ignoringRequestMatchers(
+                                "/api/inventory", "/api/inventory/**",
+                                "/api/auth/logout"))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.GET, "/api/inventory", "/api/inventory/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/inventory", "/api/inventory/**").authenticated()
@@ -36,7 +38,11 @@ public class SecurityConfig {
                 .oauth2Login(oauth -> oauth
                         .userInfoEndpoint(userInfo -> userInfo
                                 .oidcUserService(bcOidcUserService))
-                        .defaultSuccessUrl(frontendUrl, true));
+                        .defaultSuccessUrl(frontendUrl, true))
+                .logout(logout -> logout
+                        .logoutUrl("/api/auth/logout")
+                        .logoutSuccessHandler((request, response, authentication) ->
+                                response.setStatus(HttpStatus.NO_CONTENT.value())));
 
         return http.build();
     }
